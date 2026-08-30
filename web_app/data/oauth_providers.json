@@ -1,0 +1,40 @@
+{
+  "providers": [
+    {
+      "id": "generic",
+      "name": "通用 OAuth2 ERP",
+      "enabled": true,
+      "client_id": "audit-test-client",
+      "client_secret": "",
+      "authorize_url": "https://your-erp.com/oauth/authorize",
+      "token_url": "https://your-erp.com/oauth/token",
+      "scope": "read financial",
+      "api_data_url": "https://your-erp.com/api/v1/financial/kpi",
+      "redirect_uri": ""
+    },
+    {
+      "id": "yonyou",
+      "name": "用友 YonBIP",
+      "enabled": false,
+      "client_id": "",
+      "client_secret": "",
+      "authorize_url": "https://open.yonyoucloud.com/oauth/authorize",
+      "token_url": "https://open.yonyoucloud.com/oauth/token",
+      "scope": "financial_read",
+      "api_data_url": "https://open.yonyoucloud.com/api/financial/metrics",
+      "redirect_uri": ""
+    },
+    {
+      "id": "kingdee",
+      "name": "金蝶云星空",
+      "enabled": false,
+      "client_id": "",
+      "client_secret": "",
+      "authorize_url": "https://api.kingdee.com/oauth2/authorize",
+      "token_url": "https://api.kingdee.com/oauth2/token",
+      "scope": "read",
+      "api_data_url": "https://api.kingdee.com/v1/financial/indicators",
+      "redirect_uri": ""
+    }
+  ]
+}

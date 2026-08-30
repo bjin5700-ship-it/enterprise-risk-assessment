@@ -1,0 +1,14 @@
+{
+  "browser_push_enabled": true,
+  "webhook_enabled": false,
+  "webhook_url": "",
+  "webhook_type": "generic",
+  "email_enabled": false,
+  "smtp_host": "",
+  "smtp_port": 587,
+  "smtp_user": "",
+  "smtp_password": "",
+  "smtp_use_tls": true,
+  "email_from": "",
+  "email_to": []
+}

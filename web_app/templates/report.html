@@ -1,0 +1,366 @@
+﻿{% extends "base.html" %}
+{% block title %}评估报告 - 企业风险动态评估系统{% endblock %}
+{% block header_title %}<i class="fas fa-file-alt"></i> 风险评估报告{% endblock %}
+{% block header_actions %}
+<div class="no-print" id="exportActions" style="display:none;gap:6px;flex-wrap:wrap;">
+  <button class="btn btn-outline btn-sm" onclick="window.print()"><i class="fas fa-print"></i> 打印</button>
+  <button class="btn btn-outline btn-sm" data-export="docx"><i class="fas fa-file-word"></i> Word</button>
+  <button class="btn btn-outline btn-sm" data-export="pdf"><i class="fas fa-file-pdf"></i> PDF</button>
+  <button class="btn btn-outline btn-sm" data-export="html"><i class="fas fa-file-code"></i> HTML</button>
+  <button class="btn btn-outline btn-sm" data-export="md"><i class="fas fa-file-alt"></i> MD</button>
+</div>
+{% endblock %}
+{% block content_class %}content-narrow{% endblock %}
+
+{% block content %}
+<div class="empty-state" id="emptyState">
+  <i class="fas fa-file-alt"></i>
+  <p>暂无评估数据，请先录入企业风险信息，或在左侧加载带「演示」标记的档案</p>
+  <a href="{{ erm_base }}/data-entry" class="btn"><i class="fas fa-edit"></i> 前往数据录入</a>
+</div>
+
+<div id="reportBody" style="display:none;" hidden aria-hidden="true">
+  <div class="report-with-toc">
+    <nav class="report-toc no-print" id="reportToc">
+      <h4>目录</h4>
+      <a href="#rCover">封面</a>
+      <a href="#rSec1">评估概要</a>
+      <a href="#rSec4">维度评分</a>
+      <a href="#rSec8">行动路线</a>
+      <a href="#rSecQuant">量化分析</a>
+      <a href="#rSecClosedLoop">数据闭环</a>
+    </nav>
+    <div class="report-main">
+  <div class="report-cover" id="rCover">
+    <h1>企业风险评估报告</h1>
+    <div class="company-name" id="rCompanyName"></div>
+    <div class="meta">
+      <div id="rReportDate"></div>
+      <div>本报告基于企业风险动态评估系统自动生成</div>
+      <div>仅供内部管理参考，请勿外传</div>
+    </div>
+  </div>
+
+  <div class="report-section">
+    <h2 id="rSec1">一、评估概要</h2>
+    <div class="summary-grid">
+      <div class="summary-item" id="rScoreCard"><div class="label">综合评分</div><div class="value">--</div></div>
+      <div class="summary-item" id="rLevelCard"><div class="label">风险等级</div><div class="value">--</div></div>
+      <div class="summary-item" id="rDimCountCard"><div class="label">评估维度</div><div class="value">--</div></div>
+      <div class="summary-item" id="rRiskCountCard"><div class="label">关键风险项</div><div class="value">--</div></div>
+    </div>
+    <div id="rAnalyticsOverview"></div>
+    <div id="rExecBrief"></div>
+    <div id="rFormStats" class="notice notice-info" style="display:none;"></div>
+    <div id="rExecSummary" class="notice notice-success" style="display:none;margin-top:12px;"></div>
+    <div id="rCompare" class="compare-card no-print" style="display:none;margin-top:12px;"></div>
+  </div>
+
+  <div class="report-section" id="rFrameworkSection" style="display:none;">
+    <h2>二、国际标准框架对齐（ISO 31000 · COSO ERM · TCFD）</h2>
+    <table class="dim-table">
+      <thead><tr><th>维度</th><th>评分</th><th>等级</th><th>ISO 31000</th><th>COSO · TCFD</th></tr></thead>
+      <tbody id="rFrameworkBody"></tbody>
+    </table>
+  </div>
+
+  <div class="report-section" id="rGapSection" style="display:none;">
+    <h2>三、数据维度缺口分析</h2>
+    <div id="rGapAnalysis"></div>
+  </div>
+
+  <div class="report-section">
+    <h2 id="rSec4">四、各维度风险评分</h2>
+    <div class="chart-row">
+      <div class="chart-box"><canvas id="reportRadar"></canvas></div>
+      <div class="chart-box"><canvas id="reportBar"></canvas></div>
+    </div>
+    <div class="chart-row" style="margin-top:16px;">
+      <div class="chart-box-sm"><canvas id="reportDoughnut"></canvas></div>
+      <div class="chart-box-sm"><canvas id="reportWeight"></canvas></div>
+    </div>
+    <table class="dim-table" style="margin-top:16px;">
+      <thead><tr><th>维度</th><th>评分</th><th>等级</th><th>权重</th><th>关键发现</th></tr></thead>
+      <tbody id="rDimTableBody"></tbody>
+    </table>
+  </div>
+
+  <div class="report-section">
+    <h2>五、关键风险详情</h2>
+    <ul class="risk-list" id="rRiskList"></ul>
+  </div>
+
+  <div class="report-section">
+    <h2>六、各维度详细发现</h2>
+    <div id="rFindings"></div>
+    <div id="rExternalSection" style="display:none;margin-top:18px;">
+      <h3 style="font-size:16px;margin-bottom:8px;">外部信用与司法证据（佐证，不替代规则分）</h3>
+      <div id="rExternalEvidence"></div>
+    </div>
+  </div>
+
+  <div class="report-section">
+    <h2>七、评估结论与建议</h2>
+    <div id="rConclusions"></div>
+  </div>
+
+  <div class="report-section" id="rActionSection" style="display:none;">
+    <h2 id="rSec8">八、整改行动路线图</h2>
+    <p id="rActionIntro" style="font-size:14px;color:#555;margin-bottom:12px;"></p>
+    <div id="rActionPlans"></div>
+  </div>
+
+  <div class="report-section" id="rScenarioSection" style="display:none;">
+    <h2>九、情景分析与压力测试（TCFD）</h2>
+    <div id="rScenarioPanel"></div>
+  </div>
+
+  <div class="report-section" id="rRegisterSection" style="display:none;">
+    <h2>十、风险登记册与应对策略（ISO 31000）</h2>
+    <div id="rRiskRegister"></div>
+    <h3 style="font-size:16px;margin:16px 0 8px;">董事会建议</h3>
+    <div id="rBoardRecs"></div>
+  </div>
+
+  <div class="report-section" id="rBenchmarkSection" style="display:none;">
+    <h2>十一、行业对标分析</h2>
+    <div id="rIndustryBenchmark"></div>
+  </div>
+
+  <div class="report-section" id="rQuantSection" style="display:none;">
+    <h2 id="rSecQuant">十二、蒙特卡洛量化分析（ISO 31010）</h2>
+    <p class="gap-summary" style="margin-bottom:12px;">分数轨为综合评分不确定性（1–4），不是货币损失。金额轨仅在填报营收或资产时作为经营冲击情景。</p>
+    <div id="rMonteCarloSummary"></div>
+    <div class="chart-box" style="height:280px;"><canvas id="rMcChart"></canvas></div>
+  </div>
+
+  <div class="report-section" id="rTldSection" style="display:none;">
+    <h2>十三、COSO 三道防线评估</h2>
+    <div class="chart-row"><div class="chart-box-sm"><canvas id="rTldChart"></canvas></div></div>
+    <div id="rTldDetail"></div>
+  </div>
+
+  <div class="report-section" id="rPlaybookSection" style="display:none;">
+    <h2>十四、行业深度方案路径</h2>
+    <div id="rIndustryPlaybook"></div>
+  </div>
+
+  <div class="report-section" id="rBayesSection" style="display:none;">
+    <h2>十五、贝叶斯风险更新（ISO 31010）</h2>
+    <div id="rBayesian"></div>
+  </div>
+
+  <div class="report-section" id="rCorrSection" style="display:none;">
+    <h2>十六、风险关联网络与传导路径</h2>
+    <div class="network-canvas-wrap" style="height:320px;"><canvas id="rCorrNetwork"></canvas></div>
+    <div id="rCorrInsights" style="margin-top:12px;"></div>
+  </div>
+
+  <div class="report-section" id="rHeatmapSection" style="display:none;">
+    <h2>十七、5×5 风险热力矩阵</h2>
+    <p class="gap-summary">矩阵来自各维度独立填写的可能性×影响（1–5）；综合评分来自规则引擎，二者不互相推导。</p>
+    <div id="rHeatmapNote"></div>
+    <div class="chart-box" style="height:300px;"><canvas id="rHeatmap"></canvas></div>
+    <div id="rHeatmapTable" style="margin-top:12px;"></div>
+  </div>
+
+  <div class="report-section" id="rClosedLoopSection" style="display:none;">
+    <h2 id="rSecClosedLoop">十八、数据闭环与整改验证</h2>
+    <div id="rClosedLoop"></div>
+    <p id="rKpiTrendEmpty" class="gap-summary" style="display:none;">样本不足</p>
+    <div class="chart-box-xs" style="margin-top:12px;"><canvas id="rScoreTrend"></canvas></div>
+  </div>
+
+  <div class="footer">
+    <p>本报告由企业风险动态评估系统自动生成</p>
+    <p id="rFooterTime"></p>
+  </div>
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+let reportCharts = {}, currentResult = null, reportExtraCharts = {};
+
+function loadReport() {
+  currentResult = ERM.getAssessment();
+  if (!currentResult) {
+    document.getElementById("emptyState").style.display = "block";
+    const body = document.getElementById("reportBody");
+    body.style.display = "none";
+    body.hidden = true;
+    body.setAttribute("aria-hidden", "true");
+    document.getElementById("exportActions").style.display = "none";
+    return;
+  }
+  document.getElementById("emptyState").style.display = "none";
+  const body = document.getElementById("reportBody");
+  body.style.display = "block";
+  body.hidden = false;
+  body.setAttribute("aria-hidden", "false");
+  document.getElementById("exportActions").style.display = "flex";
+  window.ERM_COMPANY = currentResult.company_name;
+  ERM.applyWorkflow(currentResult).then(() => {
+    renderReport(currentResult);
+    ERM.bindExportButtons(document.getElementById("exportActions"), () => currentResult.all_raw_data || {});
+    ERM.bindWorkflowClicks(currentResult.company_name, () => loadReport());
+  });
+}
+
+function renderReport(result) {
+  document.getElementById("rCompanyName").textContent = result.company_name;
+  document.getElementById("rReportDate").textContent = "报告日期：" + result.report_date;
+  document.getElementById("rFooterTime").textContent = "生成时间：" + new Date().toLocaleString("zh-CN");
+
+  ["rScoreCard", "rLevelCard"].forEach((id, i) => {
+    const el = document.getElementById(id);
+    el.querySelector(".value").textContent = i ? result.overall_level : result.overall_score.toFixed(2);
+    el.className = "summary-item " + ERM.levelBg(result.overall_level);
+  });
+  document.getElementById("rDimCountCard").querySelector(".value").textContent = result.dimensions.length;
+  document.getElementById("rRiskCountCard").querySelector(".value").textContent = result.key_risks.length;
+
+  const statsEl = document.getElementById("rFormStats");
+  if (result.form_stats) {
+    statsEl.style.display = "block";
+    const s = result.form_stats;
+    statsEl.innerHTML = `<i class="fas fa-clipboard-check"></i> 数据完成度 ${s.completion_pct}%（${s.filled_fields}/${s.total_fields}），关键字段 ${s.key_filled}/${s.key_total}，覆盖 ${s.scoring_sheets_filled}/${s.scoring_sheets_total} 个风险维度。`;
+  }
+
+  const analytics = result.analytics || {};
+  ERM.renderAnalyticsOverview(document.getElementById("rAnalyticsOverview"), analytics);
+
+  const execEl = document.getElementById("rExecSummary");
+  if (analytics.executive_summary?.length) {
+    execEl.style.display = "block";
+    execEl.innerHTML = "<strong><i class=\"fas fa-gavel\"></i> 董事会执行摘要</strong><ul style=\"margin:8px 0 0 18px;line-height:1.8;\">" +
+      analytics.executive_summary.map(l => `<li>${ERM.escapeHtml(l)}</li>`).join("") + "</ul>" +
+      `<p style="font-size:12px;color:#666;margin-top:8px;">${ERM.escapeHtml(analytics.standards_footer || "")}</p>`;
+  }
+
+  if (analytics.framework_alignment?.length) {
+    document.getElementById("rFrameworkSection").style.display = "block";
+    ERM.renderFrameworkTable(document.getElementById("rFrameworkBody"), analytics.framework_alignment);
+  }
+  if (analytics.gap_analysis) {
+    document.getElementById("rGapSection").style.display = "block";
+    ERM.renderGapAnalysis(document.getElementById("rGapAnalysis"), analytics.gap_analysis);
+  }
+
+  if (result.action_plans?.action_items?.length) {
+    document.getElementById("rActionSection").style.display = "block";
+    const p = result.action_plans;
+    document.getElementById("rActionIntro").textContent =
+      `共 ${p.total_actions} 项可执行行动，其中 P0 立即行动 ${p.p0_count} 项。${p.raci_note || ""}`;
+    ERM.renderActionPlans(document.getElementById("rActionPlans"), p);
+  }
+
+  if (result.analytics?.scenario_analysis) {
+    document.getElementById("rScenarioSection").style.display = "block";
+    ERM.renderScenarioAnalysis(document.getElementById("rScenarioPanel"), result.analytics.scenario_analysis);
+  }
+
+  const deep = result.deep_analysis || result.analytics?.deep_analysis;
+  if (deep?.risk_register?.length) {
+    document.getElementById("rRegisterSection").style.display = "block";
+    ERM.renderRiskRegister(document.getElementById("rRiskRegister"), deep.risk_register);
+    ERM.renderBoardRecommendations(document.getElementById("rBoardRecs"), deep.board_recommendations);
+  }
+  if (deep?.industry_benchmark) {
+    document.getElementById("rBenchmarkSection").style.display = "block";
+    ERM.renderIndustryBenchmark(document.getElementById("rIndustryBenchmark"), deep.industry_benchmark);
+  }
+
+  const cached = JSON.parse(localStorage.getItem(ERM.HISTORY_CACHE_KEY) || "[]");
+  const idx = cached.findIndex(r => r.company_name === result.company_name);
+  if (idx >= 0 && cached[idx + 1]) {
+    ERM.renderComparison(document.getElementById("rCompare"), result, cached[idx + 1]);
+  }
+
+  const tbody = document.getElementById("rDimTableBody");
+  tbody.innerHTML = "";
+  result.dimensions.forEach(dim => {
+    const tr = document.createElement("tr");
+    tr.innerHTML = `<td>${ERM.escapeHtml(dim.name)}</td><td><strong>${dim.score.toFixed(2)}</strong></td>
+      <td><span class="badge ${ERM.levelBadge(dim.level)}">${ERM.escapeHtml(dim.level)}</span></td>
+      <td>${(dim.weight * 100).toFixed(0)}%</td>
+      <td style="font-size:12px;color:#666;">${ERM.escapeHtml((dim.findings || []).slice(0, 2).join("；") || "—")}</td>`;
+    tbody.appendChild(tr);
+  });
+
+  ERM.renderRiskList(document.getElementById("rRiskList"), result.key_risks, "暂无关键风险项");
+  ERM.renderFindings(document.getElementById("rFindings"), result.dimensions);
+  const ext = result.external_evidence || analytics.external_evidence;
+  if (ext) {
+    document.getElementById("rExternalSection").style.display = "block";
+    ERM.renderExternalEvidence(document.getElementById("rExternalEvidence"), ext);
+  }
+
+  document.getElementById("rConclusions").innerHTML = "";
+  ERM.generateConclusions(result).forEach(c => {
+    const div = document.createElement("div");
+    div.className = "conclusion-item";
+    div.textContent = c;
+    document.getElementById("rConclusions").appendChild(div);
+  });
+
+  if (deep?.monte_carlo) {
+    document.getElementById("rQuantSection").style.display = "block";
+    ERM.renderMonteCarloSummary(document.getElementById("rMonteCarloSummary"), deep.monte_carlo);
+  }
+  if (deep?.three_lines_of_defense) {
+    document.getElementById("rTldSection").style.display = "block";
+    ERM.renderThreeLinesDetail(document.getElementById("rTldDetail"), deep.three_lines_of_defense);
+  }
+  if (deep?.industry_playbook) {
+    document.getElementById("rPlaybookSection").style.display = "block";
+    ERM.renderIndustryPlaybook(document.getElementById("rIndustryPlaybook"), deep.industry_playbook);
+  }
+  const bayes = result.bayesian_update || analytics.bayesian_update;
+  if (bayes) {
+    document.getElementById("rBayesSection").style.display = "block";
+    ERM.renderBayesianUpdate(document.getElementById("rBayesian"), bayes);
+  }
+  ERM.renderExecutiveBrief(document.getElementById("rExecBrief"), result.executive_brief || analytics.executive_brief);
+  if (deep?.correlation_network) {
+    document.getElementById("rCorrSection").style.display = "block";
+    ERM.renderCorrelationNetwork(document.getElementById("rCorrNetwork"), deep.correlation_network);
+    ERM.renderCorrelationInsights(document.getElementById("rCorrInsights"), deep.correlation_insights);
+  }
+  if (analytics.heatmap_matrix?.length) {
+    document.getElementById("rHeatmapSection").style.display = "block";
+    reportExtraCharts.heatmap = ERM.renderHeatmapMatrix(document.getElementById("rHeatmap"), analytics.heatmap_matrix);
+    ERM.renderHeatmapSummary(document.getElementById("rHeatmapNote"), document.getElementById("rHeatmapTable"), analytics.heatmap_matrix, analytics.heatmap_meta);
+  }
+  const cl = result.closed_loop || analytics.closed_loop;
+  if (cl) {
+    document.getElementById("rClosedLoopSection").style.display = "block";
+    ERM.renderClosedLoop(document.getElementById("rClosedLoop"), cl);
+    const empty = document.getElementById("rKpiTrendEmpty");
+    if (cl.timeseries?.has_trend && cl.timeseries.score_trend?.length) {
+      if (empty) empty.style.display = "none";
+      reportExtraCharts.trend = ERM.renderScoreTrendChart(document.getElementById("rScoreTrend"), cl.timeseries, reportExtraCharts.trend);
+    } else if (empty) {
+      empty.style.display = "block";
+      empty.textContent = cl.timeseries?.message || "样本不足";
+    }
+  }
+
+  ERM.destroyCharts(reportCharts);
+  reportCharts.radar = ERM.createRadarChart(document.getElementById("reportRadar"), result.dimensions);
+  reportCharts.bar = ERM.createBarChart(document.getElementById("reportBar"), result.dimensions);
+  reportCharts.doughnut = ERM.createDoughnutChart(document.getElementById("reportDoughnut"), result.level_distribution || {});
+  reportCharts.weight = ERM.createWeightChart(document.getElementById("reportWeight"), result.dimensions);
+  if (deep?.monte_carlo) {
+    reportExtraCharts.mc = ERM.renderMonteCarlo(document.getElementById("rMcChart"), deep.monte_carlo, reportExtraCharts.mc);
+  }
+  if (deep?.three_lines_of_defense) {
+    reportExtraCharts.tld = ERM.renderThreeLines(document.getElementById("rTldChart"), deep.three_lines_of_defense, reportExtraCharts.tld);
+  }
+}
+
+loadReport();
+</script>
+{% endblock %}

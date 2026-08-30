@@ -1,0 +1,56 @@
+{
+  "2qMXj0W4-bOWfiQ7CIBdPw": {
+    "provider_id": "generic",
+    "company_name": "test",
+    "redirect_uri": "http://127.0.0.1:8088/api/integrations/oauth/callback",
+    "created_at": "2026-07-09T10:50:12.765167"
+  },
+  "U81j110J2N7IU7vNSZ9nFQ": {
+    "provider_id": "generic",
+    "company_name": "test",
+    "redirect_uri": "http://127.0.0.1:8088/api/integrations/oauth/callback",
+    "created_at": "2026-07-09T10:50:47.233195"
+  },
+  "pFO2kutiKk3szzgkaBVPWw": {
+    "provider_id": "generic",
+    "company_name": "test",
+    "redirect_uri": "http://127.0.0.1:8088/api/integrations/oauth/callback",
+    "created_at": "2026-07-09T10:53:10.049048"
+  },
+  "G6Wbf42J36Y9JEFjzup69Q": {
+    "provider_id": "generic",
+    "company_name": "test",
+    "redirect_uri": "http://127.0.0.1:8088/api/integrations/oauth/callback",
+    "created_at": "2026-07-09T10:53:28.107696"
+  },
+  "PlgFmsdl0nPLWAohCEtCkQ": {
+    "provider_id": "generic",
+    "company_name": "test",
+    "redirect_uri": "http://127.0.0.1:8088/api/integrations/oauth/callback",
+    "created_at": "2026-07-09T10:53:54.100752"
+  },
+  "EGq627kkP8RthA42v-k98w": {
+    "provider_id": "generic",
+    "company_name": "test",
+    "redirect_uri": "http://127.0.0.1:8088/api/integrations/oauth/callback",
+    "created_at": "2026-07-09T10:54:30.851159"
+  },
+  "BmkOL_ESxXqJBBiPYwJsNg": {
+    "provider_id": "generic",
+    "company_name": "test",
+    "redirect_uri": "http://127.0.0.1:8088/api/integrations/oauth/callback",
+    "created_at": "2026-07-09T10:54:54.368874"
+  },
+  "6oAdD3b7Dqrl-wsXQBcu7Q": {
+    "provider_id": "generic",
+    "company_name": "TestCo",
+    "redirect_uri": "http://127.0.0.1:8088/api/integrations/oauth/callback",
+    "created_at": "2026-07-09T10:55:00.754623"
+  },
+  "AOGS3L_Rko6qC08aaXW22w": {
+    "provider_id": "generic",
+    "company_name": "test",
+    "redirect_uri": "http://127.0.0.1:8088/api/integrations/oauth/callback",
+    "created_at": "2026-08-05T07:52:45.305172"
+  }
+}

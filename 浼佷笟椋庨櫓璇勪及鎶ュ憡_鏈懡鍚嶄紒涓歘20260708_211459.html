@@ -1,0 +1,436 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>企业风险评估报告 - 未命名企业</title>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.7/dist/chart.umd.min.js"></script>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body { font-family: 'Segoe UI', 'Microsoft YaHei', sans-serif; background: #f0f2f5; color: #333; }
+  .page { max-width: 1100px; margin: 0 auto; padding: 20px; }
+
+  /* 封面 */
+  .cover { text-align: center; padding: 80px 40px 60px; background: linear-gradient(135deg, #1a3a5c 0%, #2d6a9f 100%); color: #fff; border-radius: 12px; margin-bottom: 30px; }
+  .cover h1 { font-size: 36px; font-weight: 700; letter-spacing: 4px; margin-bottom: 20px; }
+  .cover .company { font-size: 24px; opacity: 0.95; margin-bottom: 40px; }
+  .cover .meta { font-size: 14px; opacity: 0.7; line-height: 2; }
+
+  /* 卡片 */
+  .card { background: #fff; border-radius: 10px; box-shadow: 0 2px 12px rgba(0,0,0,0.08); padding: 28px; margin-bottom: 24px; }
+  .card h2 { font-size: 20px; color: #1a3a5c; border-left: 4px solid #2d6a9f; padding-left: 12px; margin-bottom: 18px; }
+  .card h3 { font-size: 16px; color: #555; margin-bottom: 12px; }
+
+  /* 摘要卡片 */
+  .summary-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 16px; margin-bottom: 20px; }
+  .summary-item { text-align: center; padding: 20px; border-radius: 8px; }
+  .summary-item .label { font-size: 13px; color: #888; margin-bottom: 6px; }
+  .summary-item .value { font-size: 28px; font-weight: 700; }
+  .summary-item .sub { font-size: 13px; margin-top: 4px; }
+
+  .bg-low { background: #e8f5e9; } .bg-low .value { color: #2e7d32; }
+  .bg-medium { background: #fff8e1; } .bg-medium .value { color: #f57f17; }
+  .bg-high { background: #ffebee; } .bg-high .value { color: #c62828; }
+  .bg-critical { background: #fce4ec; } .bg-critical .value { color: #880e4f; }
+
+  /* 图表行 */
+  .chart-row { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
+  @media (max-width: 768px) { .chart-row { grid-template-columns: 1fr; } }
+  .chart-box { position: relative; height: 320px; }
+
+  /* 维度评分表 */
+  .dim-table { width: 100%; border-collapse: collapse; }
+  .dim-table th { background: #1a3a5c; color: #fff; padding: 10px 14px; text-align: left; font-size: 13px; }
+  .dim-table td { padding: 10px 14px; border-bottom: 1px solid #eee; font-size: 13px; }
+  .dim-table tr:hover td { background: #f5f7fa; }
+
+  .badge { display: inline-block; padding: 2px 10px; border-radius: 12px; font-size: 12px; font-weight: 600; color: #fff; }
+  .badge-low { background: #6BCB77; }
+  .badge-medium { background: #FFD93D; color: #333; }
+  .badge-high { background: #FF6B6B; }
+  .badge-critical { background: #C00000; }
+
+  .priority-bar { height: 8px; border-radius: 4px; background: #e0e0e0; overflow: hidden; }
+  .priority-bar-fill { height: 100%; border-radius: 4px; transition: width 0.6s ease; }
+
+  /* 关键风险 */
+  .risk-list { list-style: none; }
+  .risk-list li { padding: 8px 0 8px 20px; border-bottom: 1px solid #f0f0f0; position: relative; }
+  .risk-list li::before { content: "⚠"; position: absolute; left: 0; color: #ff6b6b; }
+  .risk-list .dim-tag { display: inline-block; font-size: 11px; padding: 1px 8px; border-radius: 4px; background: #e3f2fd; color: #1565c0; margin-right: 8px; }
+
+  /* 附录折叠 */
+  .appendix-item { margin-bottom: 12px; }
+  .appendix-item summary { cursor: pointer; font-weight: 600; color: #2d6a9f; padding: 6px 0; }
+  .appendix-item table { width: 100%; border-collapse: collapse; margin-top: 8px; }
+  .appendix-item th { background: #f5f5f5; padding: 6px 10px; text-align: left; font-size: 12px; }
+  .appendix-item td { padding: 5px 10px; border-bottom: 1px solid #eee; font-size: 12px; }
+
+  .footer { text-align: center; padding: 30px; color: #aaa; font-size: 12px; }
+</style>
+</head>
+<body>
+<div class="page">
+
+  <!-- 封面 -->
+  <div class="cover">
+    <h1>企业风险评估报告</h1>
+    <div class="company">未命名企业</div>
+    <div class="meta">
+      <div>报告日期：2026年07月08日</div>
+      <div>本报告基于企业风险管理信息搜集表自动生成</div>
+      <div>仅供内部管理参考，请勿外传</div>
+    </div>
+  </div>
+
+  <!-- 评估概要 -->
+  <div class="card">
+    <h2>一、评估概要</h2>
+    <p style="margin-bottom:18px;line-height:1.8;font-size:14px;color:#555;">
+      本报告对 <strong>未命名企业</strong> 的风险状况进行全面评估。
+      评估基于企业风险管理信息搜集表所填数据，从财务、负债、行业市场、法律合规、税务、公司治理、
+      供应链、技术信息、人力资源、ESG等17个维度进行系统性分析。
+    </p>
+    <div class="summary-grid">
+      <div class="summary-item bg-low">
+        <div class="label">综合风险评分</div>
+        <div class="value">1.00</div>
+        <div class="sub">/ 4.00</div>
+      </div>
+      <div class="summary-item bg-low">
+        <div class="label">风险等级</div>
+        <div class="value">低风险</div>
+        <div class="sub">风险可控，维持现有管理措施</div>
+      </div>
+      <div class="summary-item bg-low">
+        <div class="label">评估维度</div>
+        <div class="value">14</div>
+        <div class="sub">个维度</div>
+      </div>
+      <div class="summary-item bg-high">
+        <div class="label">关键风险点</div>
+        <div class="value">0</div>
+        <div class="sub">项待处理</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- 综合风险评分 + 图表 -->
+  <div class="card">
+    <h2>二、综合风险评分</h2>
+    <div class="chart-row">
+      <div class="chart-box">
+        <canvas id="radarChart"></canvas>
+      </div>
+      <div class="chart-box">
+        <canvas id="barChart"></canvas>
+      </div>
+    </div>
+  </div>
+
+  <!-- 各维度风险分析 -->
+  <div class="card">
+    <h2>三、各维度风险分析</h2>
+    <table class="dim-table">
+      <thead>
+        <tr>
+          <th style="width:22%">风险维度</th>
+          <th style="width:10%">评分</th>
+          <th style="width:10%">等级</th>
+          <th style="width:38%">优先级</th>
+          <th style="width:20%">建议行动</th>
+        </tr>
+      </thead>
+      <tbody>
+        
+        <tr>
+          <td><strong>财务风险</strong></td>
+          <td>1.00</td>
+          <td><span class="badge badge-low">低风险</span></td>
+          <td>
+            <div class="priority-bar">
+              <div class="priority-bar-fill" style="width:25%;background:#6BCB77;"></div>
+            </div>
+          </td>
+          <td>维持现状，定期复查</td>
+        </tr>
+        
+        <tr>
+          <td><strong>法律与合规风险</strong></td>
+          <td>1.00</td>
+          <td><span class="badge badge-low">低风险</span></td>
+          <td>
+            <div class="priority-bar">
+              <div class="priority-bar-fill" style="width:25%;background:#6BCB77;"></div>
+            </div>
+          </td>
+          <td>维持现状，定期复查</td>
+        </tr>
+        
+        <tr>
+          <td><strong>供应链风险</strong></td>
+          <td>1.00</td>
+          <td><span class="badge badge-low">低风险</span></td>
+          <td>
+            <div class="priority-bar">
+              <div class="priority-bar-fill" style="width:25%;background:#6BCB77;"></div>
+            </div>
+          </td>
+          <td>维持现状，定期复查</td>
+        </tr>
+        
+        <tr>
+          <td><strong>技术与信息安全风险</strong></td>
+          <td>1.00</td>
+          <td><span class="badge badge-low">低风险</span></td>
+          <td>
+            <div class="priority-bar">
+              <div class="priority-bar-fill" style="width:25%;background:#6BCB77;"></div>
+            </div>
+          </td>
+          <td>维持现状，定期复查</td>
+        </tr>
+        
+        <tr>
+          <td><strong>人力资源风险</strong></td>
+          <td>1.00</td>
+          <td><span class="badge badge-low">低风险</span></td>
+          <td>
+            <div class="priority-bar">
+              <div class="priority-bar-fill" style="width:25%;background:#6BCB77;"></div>
+            </div>
+          </td>
+          <td>维持现状，定期复查</td>
+        </tr>
+        
+        <tr>
+          <td><strong>税务风险</strong></td>
+          <td>1.00</td>
+          <td><span class="badge badge-low">低风险</span></td>
+          <td>
+            <div class="priority-bar">
+              <div class="priority-bar-fill" style="width:25%;background:#6BCB77;"></div>
+            </div>
+          </td>
+          <td>维持现状，定期复查</td>
+        </tr>
+        
+        <tr>
+          <td><strong>行业与市场风险</strong></td>
+          <td>1.00</td>
+          <td><span class="badge badge-low">低风险</span></td>
+          <td>
+            <div class="priority-bar">
+              <div class="priority-bar-fill" style="width:25%;background:#6BCB77;"></div>
+            </div>
+          </td>
+          <td>维持现状，定期复查</td>
+        </tr>
+        
+        <tr>
+          <td><strong>经营风险</strong></td>
+          <td>1.00</td>
+          <td><span class="badge badge-low">低风险</span></td>
+          <td>
+            <div class="priority-bar">
+              <div class="priority-bar-fill" style="width:25%;background:#6BCB77;"></div>
+            </div>
+          </td>
+          <td>维持现状，定期复查</td>
+        </tr>
+        
+        <tr>
+          <td><strong>生产运营风险</strong></td>
+          <td>1.00</td>
+          <td><span class="badge badge-low">低风险</span></td>
+          <td>
+            <div class="priority-bar">
+              <div class="priority-bar-fill" style="width:25%;background:#6BCB77;"></div>
+            </div>
+          </td>
+          <td>维持现状，定期复查</td>
+        </tr>
+        
+        <tr>
+          <td><strong>安全生产风险</strong></td>
+          <td>1.00</td>
+          <td><span class="badge badge-low">低风险</span></td>
+          <td>
+            <div class="priority-bar">
+              <div class="priority-bar-fill" style="width:25%;background:#6BCB77;"></div>
+            </div>
+          </td>
+          <td>维持现状，定期复查</td>
+        </tr>
+        
+        <tr>
+          <td><strong>环境风险</strong></td>
+          <td>1.00</td>
+          <td><span class="badge badge-low">低风险</span></td>
+          <td>
+            <div class="priority-bar">
+              <div class="priority-bar-fill" style="width:25%;background:#6BCB77;"></div>
+            </div>
+          </td>
+          <td>维持现状，定期复查</td>
+        </tr>
+        
+        <tr>
+          <td><strong>信用风险</strong></td>
+          <td>1.00</td>
+          <td><span class="badge badge-low">低风险</span></td>
+          <td>
+            <div class="priority-bar">
+              <div class="priority-bar-fill" style="width:25%;background:#6BCB77;"></div>
+            </div>
+          </td>
+          <td>维持现状，定期复查</td>
+        </tr>
+        
+        <tr>
+          <td><strong>关联方与集团风险</strong></td>
+          <td>1.00</td>
+          <td><span class="badge badge-low">低风险</span></td>
+          <td>
+            <div class="priority-bar">
+              <div class="priority-bar-fill" style="width:25%;background:#6BCB77;"></div>
+            </div>
+          </td>
+          <td>维持现状，定期复查</td>
+        </tr>
+        
+        <tr>
+          <td><strong>项目投资风险</strong></td>
+          <td>1.00</td>
+          <td><span class="badge badge-low">低风险</span></td>
+          <td>
+            <div class="priority-bar">
+              <div class="priority-bar-fill" style="width:25%;background:#6BCB77;"></div>
+            </div>
+          </td>
+          <td>维持现状，定期复查</td>
+        </tr>
+        
+      </tbody>
+    </table>
+  </div>
+
+  <!-- 核心风险总结 -->
+  <div class="card">
+    <h2>四、核心风险总结</h2>
+    
+    <p style="color:#888;">未识别出关键风险点，整体风险可控。</p>
+    
+  </div>
+
+  <!-- 附录 -->
+  <div class="card">
+    <h2>五、附录：原始数据摘要</h2>
+    <p style="margin-bottom:14px;font-size:13px;color:#888;">以下为各Sheet中提取的关键数据字段摘要（点击展开）：</p>
+    
+    <details class="appendix-item">
+      <summary>综合评估</summary>
+      
+      <table>
+        <thead><tr><th style="width:35%">字段</th><th>填写内容</th></tr></thead>
+        <tbody>
+          
+          <tr><td>经营风险</td><td>市场地位、客户集中度、营收稳定性</td></tr>
+          
+          <tr><td>财务风险</td><td>偿债能力、盈利能力、现金流</td></tr>
+          
+          <tr><td>生产运营风险</td><td>产能利用率、设备状态、质量</td></tr>
+          
+          <tr><td>安全生产风险</td><td>事故率、隐患管理、危化品</td></tr>
+          
+          <tr><td>环境风险</td><td>合规性、排放管理、环保投入</td></tr>
+          
+          <tr><td>法律合规风险</td><td>诉讼、合同、知识产权</td></tr>
+          
+          <tr><td>供应链风险</td><td>供应商依赖、物流、地缘</td></tr>
+          
+          <tr><td>技术风险</td><td>研发能力、技术迭代、数据安全</td></tr>
+          
+          <tr><td>人力资源风险</td><td>人才流失、劳资关系</td></tr>
+          
+          <tr><td>信用风险</td><td>征信记录、履约能力</td></tr>
+          
+          <tr><td>主要风险领域</td><td>列出前3个主要风险领域</td></tr>
+          
+          <tr><td>风险缓解措施</td><td>总体风险应对策略</td></tr>
+          
+        </tbody>
+      </table>
+      
+    </details>
+    
+  </div>
+
+  <div class="footer">
+    <p>企业风险管理系统 · 自动生成 · 2026年07月08日</p>
+  </div>
+</div>
+
+<script>
+const DIM_NAMES = ["财务风险", "法律与合规风险", "供应链风险", "技术与信息安全风险", "人力资源风险", "税务风险", "行业与市场风险", "经营风险", "生产运营风险", "安全生产风险", "环境风险", "信用风险", "关联方与集团风险", "项目投资风险"];
+const DIM_SCORES = [1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0];
+const DIM_COLORS = ["#6BCB77", "#6BCB77", "#6BCB77", "#6BCB77", "#6BCB77", "#6BCB77", "#6BCB77", "#6BCB77", "#6BCB77", "#6BCB77", "#6BCB77", "#6BCB77", "#6BCB77", "#6BCB77"];
+
+// 雷达图
+new Chart(document.getElementById('radarChart'), {
+  type: 'radar',
+  data: {
+    labels: DIM_NAMES,
+    datasets: [{
+      label: '风险评分',
+      data: DIM_SCORES,
+      backgroundColor: 'rgba(45, 106, 159, 0.15)',
+      borderColor: 'rgba(45, 106, 159, 0.8)',
+      borderWidth: 2,
+      pointBackgroundColor: DIM_COLORS,
+      pointRadius: 4,
+    }]
+  },
+  options: {
+    responsive: true,
+    maintainAspectRatio: false,
+    scales: {
+      r: { min: 0, max: 4, ticks: { stepSize: 1 } }
+    },
+    plugins: {
+      title: { display: true, text: '各维度风险评分雷达图', font: { size: 14 } },
+      legend: { display: false }
+    }
+  }
+});
+
+// 柱状图
+new Chart(document.getElementById('barChart'), {
+  type: 'bar',
+  data: {
+    labels: DIM_NAMES,
+    datasets: [{
+      label: '风险评分',
+      data: DIM_SCORES,
+      backgroundColor: DIM_COLORS.map(c => c + 'CC'),
+      borderColor: DIM_COLORS,
+      borderWidth: 1,
+      borderRadius: 4,
+    }]
+  },
+  options: {
+    indexAxis: 'y',
+    responsive: true,
+    maintainAspectRatio: false,
+    scales: {
+      x: { min: 0, max: 4, ticks: { stepSize: 1 } }
+    },
+    plugins: {
+      title: { display: true, text: '各维度风险评分排序', font: { size: 14 } },
+      legend: { display: false }
+    }
+  }
+});
+</script>
+</body>
+</html>

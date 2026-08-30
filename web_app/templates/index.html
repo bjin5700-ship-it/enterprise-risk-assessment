@@ -1,0 +1,258 @@
+﻿{% extends "base.html" %}
+{% block title %}仪表盘 - 企业风险动态评估系统{% endblock %}
+{% block header_title %}<i class="fas fa-chart-pie"></i> 风险仪表盘{% endblock %}
+{% block header_actions %}
+<button class="btn btn-outline btn-sm no-print" id="btnRefresh"><i class="fas fa-sync"></i> 刷新</button>
+<a href="{{ erm_base }}/data-entry" class="btn btn-primary btn-sm no-print"><i class="fas fa-edit"></i> 录入数据</a>
+{% endblock %}
+
+{% block content %}
+<div id="noticeBar" class="notice notice-info">
+  <i class="fas fa-info-circle"></i><span id="noticeText">正在加载…</span>
+</div>
+<div id="reassessBar" class="notice notice-info" style="display:none;"></div>
+<div id="compareCard" class="compare-card no-print" style="display:none;"></div>
+
+<div class="dashboard-hero" id="dashboardHero">
+  <div class="score-ring-wrap">
+    <canvas id="scoreRing"></canvas>
+    <div class="score-ring-center">
+      <span class="score-num" id="heroScore">--</span>
+      <span class="score-max">/ 4.00</span>
+    </div>
+  </div>
+  <div class="hero-meta">
+    <h2 id="heroCompany">--</h2>
+    <p class="hero-sub" id="heroSub">--</p>
+  </div>
+  <div class="hero-pills">
+    <div class="hero-pill"><span class="pill-val" id="heroLevel">--</span>风险等级</div>
+    <div class="hero-pill"><span class="pill-val" id="heroMaturity">--</span>ERM 成熟度</div>
+    <div class="hero-pill"><span class="pill-val" id="heroConfidence">--</span>数据置信度</div>
+  </div>
+</div>
+
+<div id="phase1GatePanel"></div>
+<div id="phase1BenchPanel"></div>
+<div id="executiveBriefPanel"></div>
+<div id="phase1ActionsPanel"></div>
+<div id="alertCenterPanel"></div>
+<div id="crossRiskCard" style="display:none;" class="card alert-card no-print"></div>
+
+<nav class="section-nav no-print" id="sectionNav">
+  <a href="#sec-monitor" data-sec="sec-monitor">监控预警</a>
+  <a href="#sec-charts" data-sec="sec-charts">可视化</a>
+  <a href="#sec-detail" data-sec="sec-detail">明细</a>
+  <a href="#sec-quant" data-sec="sec-quant">量化分析</a>
+  <a href="#sec-phase1" data-sec="sec-phase1">数据增强</a>
+  <a href="#sec-governance" data-sec="sec-governance">治理方案</a>
+</nav>
+
+<div class="section-block" id="sec-monitor">
+  <div class="section-header" data-toggle="sec-monitor"><h3><i class="fas fa-heartbeat"></i> 监控预警</h3><span class="section-toggle"><i class="fas fa-chevron-down"></i></span></div>
+  <div class="section-body">
+    <div class="card"><h3><i class="fas fa-tasks"></i> 复评与到期任务</h3><div id="taskListPanel"></div></div>
+    <div class="card"><h3><i class="fas fa-sync-alt"></i> 数据闭环 · 整改验证</h3><div id="closedLoopPanel"></div></div>
+    <div class="card"><h3><i class="fas fa-chart-line"></i> KPI 时序趋势</h3>
+      <p id="kpiTrendEmpty" class="gap-summary" style="display:none;">样本不足</p>
+      <div class="chart-box-xs"><canvas id="scoreTrendChart"></canvas></div>
+    </div>
+    <div class="chart-row">
+      <div class="card"><h3><i class="fas fa-tachometer-alt"></i> KRI 关键风险指标</h3><div id="kriDashboard"></div></div>
+      <div class="card"><h3><i class="fas fa-project-diagram"></i> 情景分析（TCFD）</h3><div id="scenarioPanel"></div></div>
+    </div>
+  </div>
+</div>
+
+<div class="section-block" id="sec-charts">
+  <div class="section-header" data-toggle="sec-charts"><h3><i class="fas fa-chart-area"></i> 可视化分析</h3><span class="section-toggle"><i class="fas fa-chevron-down"></i></span></div>
+  <div class="section-body">
+    <div class="chart-row">
+      <div class="card"><h3><i class="fas fa-chart-pie"></i> 雷达图</h3><div class="chart-box"><canvas id="radarChart"></canvas></div></div>
+      <div class="card"><h3><i class="fas fa-chart-bar"></i> 维度排序</h3><div class="chart-box"><canvas id="barChart"></canvas></div></div>
+    </div>
+    <div class="chart-row">
+      <div class="card"><h3><i class="fas fa-circle-notch"></i> 风险等级分布</h3><div class="chart-box-sm"><canvas id="doughnutChart"></canvas></div></div>
+      <div class="card"><h3><i class="fas fa-balance-scale"></i> 维度权重</h3><div class="chart-box-sm"><canvas id="weightChart"></canvas></div></div>
+    </div>
+  </div>
+</div>
+
+<div class="section-block collapsed" id="sec-detail">
+  <div class="section-header" data-toggle="sec-detail"><h3><i class="fas fa-table"></i> 评分明细</h3><span class="section-toggle"><i class="fas fa-chevron-down"></i></span></div>
+  <div class="section-body">
+    <div class="card">
+      <table class="dim-table"><thead><tr><th>维度</th><th>评分</th><th>等级</th><th>指示</th><th>关键风险</th></tr></thead><tbody id="dimTableBody"></tbody></table>
+    </div>
+    <div class="card"><h3><i class="fas fa-exclamation-circle"></i> 关键风险点（Top 10）</h3><ul class="risk-list" id="riskList"></ul></div>
+  </div>
+</div>
+
+<div class="section-block collapsed" id="sec-quant">
+  <div class="section-header" data-toggle="sec-quant"><h3><i class="fas fa-flask"></i> 量化分析</h3><span class="section-toggle"><i class="fas fa-chevron-down"></i></span></div>
+  <div class="section-body">
+    <div class="chart-row">
+      <div class="card"><h3><i class="fas fa-brain"></i> 贝叶斯风险更新</h3><div id="bayesianPanel"></div></div>
+      <div class="card"><h3><i class="fas fa-fire"></i> 5×5 风险热力矩阵</h3><div class="chart-box-sm"><canvas id="heatmapChart"></canvas></div><div id="heatmapNote"></div></div>
+    </div>
+    <div class="chart-row">
+      <div class="card"><h3><i class="fas fa-project-diagram"></i> 风险关联网络</h3><div class="network-canvas-wrap"><canvas id="corrNetwork"></canvas></div><div id="corrInsights" style="margin-top:10px;"></div></div>
+      <div class="card"><h3><i class="fas fa-th"></i> 维度相关矩阵</h3><div id="corrMatrixPanel"></div></div>
+    </div>
+    <div class="chart-row">
+      <div class="card"><h3><i class="fas fa-dice"></i> 评分不确定性（蒙特卡洛）</h3><div id="mcSummary"></div><div class="chart-box-sm"><canvas id="mcChart"></canvas></div></div>
+      <div class="card"><h3><i class="fas fa-shield-virus"></i> COSO 三道防线</h3><div class="chart-box-sm"><canvas id="tldChart"></canvas></div><div id="tldDetail" style="margin-top:10px;"></div></div>
+    </div>
+  </div>
+</div>
+
+<div class="section-block" id="sec-phase1">
+  <div class="section-header" data-toggle="sec-phase1"><h3><i class="fas fa-layer-group"></i> 数据增强（Phase-1）</h3><span class="section-toggle"><i class="fas fa-chevron-down"></i></span></div>
+  <div class="section-body">
+    <div class="chart-row">
+      <div class="card"><h3><i class="fas fa-shield-alt"></i> 数据门禁与置信度</h3><div id="phase1GateDetail"></div></div>
+      <div class="card"><h3><i class="fas fa-chart-bar"></i> 行业分位对标</h3><div id="phase1BenchDetail"></div></div>
+    </div>
+    <div class="card"><h3><i class="fas fa-tasks"></i> 可验证行动包</h3><div id="phase1ActionsDetail"></div></div>
+    <div class="card"><h3><i class="fas fa-folder-open"></i> 补充材料</h3><div id="phase1SupplementsDetail"></div></div>
+  </div>
+</div>
+
+<div class="section-block collapsed" id="sec-governance">
+  <div class="section-header" data-toggle="sec-governance"><h3><i class="fas fa-landmark"></i> 治理与方案</h3><span class="section-toggle"><i class="fas fa-chevron-down"></i></span></div>
+  <div class="section-body">
+    <div class="card"><h3><i class="fas fa-industry"></i> 行业深度方案路径</h3><div id="industryPlaybookPanel"></div></div>
+    <div class="card"><h3><i class="fas fa-gavel"></i> 外部信用与司法证据</h3><div id="externalEvidencePanel"></div></div>
+    <div class="card"><h3><i class="fas fa-clipboard-list"></i> 风险登记册（ISO 31000）</h3><div id="riskRegisterPanel"></div></div>
+  </div>
+</div>
+
+<div class="card no-print">
+  <h3><i class="fas fa-download"></i> 快速导出</h3>
+  <div class="toolbar-row" id="quickExport">
+    <button class="btn btn-outline btn-sm" data-export="docx"><i class="fas fa-file-word"></i> Word</button>
+    <button class="btn btn-outline btn-sm" data-export="pdf"><i class="fas fa-file-pdf"></i> PDF</button>
+    <button class="btn btn-outline btn-sm" data-export="html"><i class="fas fa-file-code"></i> HTML</button>
+    <a href="{{ erm_base }}/report" class="btn btn-primary btn-sm"><i class="fas fa-file-alt"></i> 完整报告</a>
+    <a href="{{ erm_base }}/solution" class="btn btn-outline btn-sm"><i class="fas fa-lightbulb"></i> 解决方案</a>
+  </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+let charts = {};
+
+async function loadDashboard() {
+  const noticeText = document.getElementById("noticeText");
+  let result = ERM.getAssessment();
+  if (!result) {
+    noticeText.innerHTML = '暂无数据，加载 <strong>示例评估</strong>。请 <a href="{{ erm_base }}/data-entry">录入真实数据</a> 或从侧边栏加载档案。';
+    try {
+      const tpl = await ERM.fetchTemplate();
+      const formData = {};
+      Object.entries(tpl).forEach(([s, info]) => { formData[s] = {}; info.fields.forEach(f => formData[s][f.name] = ""); });
+      if (formData["企业基本信息"]) {
+        formData["企业基本信息"]["企业名称"] = "示例科技有限公司";
+        formData["企业基本信息"]["所属行业"] = "信息技术";
+        formData["企业基本信息"]["企业规模"] = "中型企业";
+      }
+      result = await ERM.postAssess(formData);
+      ERM.setAssessment(result);
+    } catch (e) {
+      document.getElementById("noticeBar").className = "notice notice-warning";
+      noticeText.textContent = "加载失败：" + e.message;
+      return;
+    }
+  } else {
+    document.getElementById("noticeBar").className = "notice notice-success";
+    noticeText.innerHTML = `<strong>${ERM.escapeHtml(result.company_name)}</strong> · ${result.report_date} · 完成度 ${result.form_stats?.completion_pct ?? "--"}%`;
+  }
+  const cached = JSON.parse(localStorage.getItem(ERM.HISTORY_CACHE_KEY) || "[]");
+  const sameCo = cached.filter(r => r.company_name === result.company_name);
+  if (sameCo.length > 1) ERM.renderComparison(document.getElementById("compareCard"), result, sameCo[1]);
+  window.ERM_COMPANY = result.company_name;
+  await ERM.applyWorkflow(result);
+  render(result);
+  ERM.bindWorkflowClicks(result.company_name, () => loadDashboard());
+  ERM.initSectionBlocks();
+  ERM.initSectionNav("sectionNav");
+}
+
+function render(result) {
+  const analytics = result.analytics || {};
+  document.getElementById("heroCompany").textContent = result.company_name;
+  document.getElementById("heroScore").textContent = result.overall_score.toFixed(2);
+  document.getElementById("heroLevel").textContent = result.overall_level;
+  let sub = result.report_date;
+  if (result.form_stats) sub += ` · 完成度 ${result.form_stats.completion_pct}%`;
+  if (analytics.industry_profile?.industry_key) sub += ` · ${analytics.industry_profile.industry_key}行业`;
+  document.getElementById("heroSub").textContent = sub;
+  if (analytics.erm_maturity) document.getElementById("heroMaturity").textContent = analytics.erm_maturity.level + "/5";
+  if (analytics.confidence) document.getElementById("heroConfidence").textContent = analytics.confidence.score + "%";
+
+  ERM.renderPhase1Enhancement(result);
+  ERM.loadTaskList(document.getElementById("taskListPanel"));
+  ERM.renderExecutiveBrief(document.getElementById("executiveBriefPanel"), result.executive_brief || analytics.executive_brief);
+  ERM.renderAlertCenter(document.getElementById("alertCenterPanel"), result.alerts || analytics.alerts);
+  const cl = result.closed_loop || analytics.closed_loop;
+  if (cl) {
+    ERM.renderClosedLoop(document.getElementById("closedLoopPanel"), cl);
+    const empty = document.getElementById("kpiTrendEmpty");
+    if (cl.timeseries?.has_trend && cl.timeseries.score_trend?.length) {
+      if (empty) empty.style.display = "none";
+      charts.trend = ERM.renderScoreTrendChart(document.getElementById("scoreTrendChart"), cl.timeseries, charts.trend);
+    } else if (empty) {
+      empty.style.display = "block";
+      empty.textContent = cl.timeseries?.message || "样本不足";
+    }
+  }
+
+  if (analytics.cross_risk_alerts?.length) {
+    const cx = document.getElementById("crossRiskCard");
+    cx.style.display = "block";
+    cx.innerHTML = "<h3><i class=\"fas fa-link\"></i> 交叉风险信号</h3><ul class=\"cross-risk-list\">" +
+      analytics.cross_risk_alerts.map(c => `<li><strong>${ERM.escapeHtml(c.cluster)}</strong>：${ERM.escapeHtml(c.message)}</li>`).join("") + "</ul>";
+  }
+
+  ERM.renderReassessmentBanner(document.getElementById("reassessBar"), analytics.reassessment);
+  ERM.renderKriDashboard(document.getElementById("kriDashboard"), analytics.kri_dashboard);
+  ERM.renderScenarioAnalysis(document.getElementById("scenarioPanel"), analytics.scenario_analysis);
+
+  const deep = result.deep_analysis || analytics.deep_analysis || {};
+  const bayes = result.bayesian_update || analytics.bayesian_update;
+  if (bayes) ERM.renderBayesianUpdate(document.getElementById("bayesianPanel"), bayes);
+  if (analytics.heatmap_matrix) {
+    charts.heatmap = ERM.renderHeatmapMatrix(document.getElementById("heatmapChart"), analytics.heatmap_matrix);
+    ERM.renderHeatmapSummary(document.getElementById("heatmapNote"), null, analytics.heatmap_matrix, analytics.heatmap_meta);
+  }
+  if (deep.correlation_network) {
+    ERM.renderCorrelationNetwork(document.getElementById("corrNetwork"), deep.correlation_network);
+    ERM.renderCorrelationInsights(document.getElementById("corrInsights"), deep.correlation_insights);
+  }
+  if (deep.correlation_matrix) ERM.renderCorrelationMatrix(document.getElementById("corrMatrixPanel"), deep.correlation_matrix);
+  if (deep.risk_register) ERM.renderRiskRegister(document.getElementById("riskRegisterPanel"), deep.risk_register);
+  if (deep.monte_carlo) ERM.renderMonteCarloSummary(document.getElementById("mcSummary"), deep.monte_carlo);
+  if (deep.three_lines_of_defense) ERM.renderThreeLinesDetail(document.getElementById("tldDetail"), deep.three_lines_of_defense);
+  if (deep.industry_playbook) ERM.renderIndustryPlaybook(document.getElementById("industryPlaybookPanel"), deep.industry_playbook);
+  ERM.renderExternalEvidence(document.getElementById("externalEvidencePanel"), result.external_evidence || analytics.external_evidence);
+
+  ERM.renderDimTable(document.getElementById("dimTableBody"), result.dimensions);
+  ERM.renderRiskList(document.getElementById("riskList"), result.key_risks.slice(0, 10), "暂无关键风险");
+
+  ERM.destroyCharts(charts);
+  charts.ring = ERM.renderScoreGauge(document.getElementById("scoreRing"), result.overall_score, result.overall_level, null);
+  charts.radar = ERM.createRadarChart(document.getElementById("radarChart"), result.dimensions);
+  charts.bar = ERM.createBarChart(document.getElementById("barChart"), result.dimensions);
+  charts.doughnut = ERM.createDoughnutChart(document.getElementById("doughnutChart"), result.level_distribution || {});
+  charts.weight = ERM.createWeightChart(document.getElementById("weightChart"), result.dimensions);
+  if (deep.monte_carlo) charts.mc = ERM.renderMonteCarlo(document.getElementById("mcChart"), deep.monte_carlo, charts.mc);
+  if (deep.three_lines_of_defense) charts.tld = ERM.renderThreeLines(document.getElementById("tldChart"), deep.three_lines_of_defense, charts.tld);
+
+  ERM.bindExportButtons(document.getElementById("quickExport"), () => result.all_raw_data || {});
+}
+
+document.getElementById("btnRefresh").onclick = () => location.reload();
+loadDashboard();
+</script>
+{% endblock %}

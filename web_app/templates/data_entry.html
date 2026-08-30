@@ -1,0 +1,965 @@
+﻿{% extends "base.html" %}
+{% block title %}数据录入 - 企业风险动态评估系统{% endblock %}
+{% block header_title %}<i class="fas fa-edit"></i> 风险数据录入{% endblock %}
+{% block header_actions %}
+<span class="autosave-hint no-print" id="autosaveHint"></span>
+{% endblock %}
+
+{% block content %}
+<div class="notice notice-info">
+  <i class="fas fa-info-circle"></i>
+  支持 <strong>Excel 导入</strong>、自动保存、实时预览。<kbd>Ctrl+S</kbd> 保存草稿，<kbd>Ctrl+Enter</kbd> 运行评估。
+</div>
+
+<!-- Excel 导入区 -->
+<div class="card no-print" style="padding:16px;">
+  <div class="toolbar-row">
+    <div class="upload-zone" id="uploadZone" style="flex:1;margin:0;">
+      <i class="fas fa-file-excel"></i>
+      <p><strong>拖拽或点击上传</strong> 主表 Excel + 可选补充材料（可多选）</p>
+      <p style="font-size:11px;color:#999;margin-top:4px;">主表 .xlsx 必选；可同时选 PDF/Word/文本作为证据材料</p>
+      <input type="file" id="excelFileInput" accept=".xlsx,.xlsm,.pdf,.doc,.docx,.txt,.csv,.md" multiple style="display:none;">
+    </div>
+    <div style="min-width:220px;">
+      <label style="font-size:12px;color:#666;">从项目目录导入：</label>
+      <select id="localFileSelect" class="select-sm" style="width:100%;margin:4px 0 8px;">
+        <option value="">加载文件列表…</option>
+      </select>
+      <button class="btn btn-outline btn-sm w-full" id="btnImportLocal" style="width:100%;"><i class="fas fa-folder-open"></i> 导入选中文件</button>
+    </div>
+  </div>
+</div>
+
+<!-- Phase D: 外部数据同步 -->
+<div class="card no-print integration-panel" style="padding:16px;">
+  <h3 style="font-size:15px;margin-bottom:8px;"><i class="fas fa-plug"></i> 外部数据同步（ERP / 财务 API / CSV）</h3>
+  <p style="font-size:12px;color:#666;margin-bottom:10px;">粘贴 CSV（metric,value）或 JSON 财务指标，自动映射至表单字段后刷新评估。</p>
+  <textarea id="integrationPayload" placeholder="资产负债率,72&#10;流动比率,1.35&#10;净利率,5.2"></textarea>
+  <div class="toolbar-row" style="margin-top:8px;">
+    <button class="btn btn-outline btn-sm" id="btnSyncCsv"><i class="fas fa-file-csv"></i> CSV 同步</button>
+    <button class="btn btn-outline btn-sm" id="btnSyncJson"><i class="fas fa-code"></i> JSON 同步</button>
+    <button class="btn btn-outline btn-sm" id="btnMonitorSnapshot"><i class="fas fa-heartbeat"></i> 实时快照</button>
+  </div>
+  <div id="integrationResult" style="font-size:12px;color:#666;margin-top:8px;"></div>
+
+  <div class="schedule-panel admin-only">
+    <h4 style="font-size:14px;margin-bottom:6px;"><i class="fas fa-clock"></i> 多企业并行定时同步</h4>
+    <p style="font-size:12px;color:#666;margin-bottom:8px;">支持多企业任务并行（ThreadPool），每任务独立数据源与间隔。OAuth ERP 授权后可选择 oauth_erp 数据源。</p>
+    <div class="schedule-grid">
+      <div><label><input type="checkbox" id="schedGlobalEnabled"> 全局启用调度</label></div>
+      <div><label>最大并行数</label><input type="number" id="schedMaxParallel" min="1" max="16" value="4"></div>
+    </div>
+    <table class="jobs-table" id="jobsTable">
+      <thead><tr><th>企业</th><th>间隔</th><th>数据源</th><th>上次状态</th><th>操作</th></tr></thead>
+      <tbody id="jobsTableBody"><tr><td colspan="5" style="color:#888;">加载中…</td></tr></tbody>
+    </table>
+    <div class="schedule-grid" style="margin-top:10px;">
+      <div><label>企业名称</label><input type="text" id="jobCompany" placeholder="企业 A"></div>
+      <div><label>间隔（分钟）</label><input type="number" id="jobInterval" min="5" value="60"></div>
+      <div><label>数据源</label>
+        <select id="jobSourceType">
+          <option value="csv_file">本地 CSV</option>
+          <option value="csv_url">CSV URL</option>
+          <option value="financial_api_url">财务 API</option>
+          <option value="erp_json_url">ERP JSON</option>
+          <option value="oauth_erp">OAuth ERP</option>
+        </select>
+      </div>
+      <div><label id="jobSourceLabel">路径 / URL / Provider</label><input type="text" id="jobSource" placeholder="文件路径或 URL"></div>
+    </div>
+    <div style="margin-top:6px;display:flex;gap:12px;flex-wrap:wrap;font-size:12px;">
+      <label><input type="checkbox" id="jobAutoAssess" checked> 自动评估</label>
+      <label><input type="checkbox" id="jobAutoNotify" checked> 推送告警</label>
+      <label><input type="checkbox" id="jobAutoHistory"> 存档案</label>
+    </div>
+    <div class="toolbar-row" style="margin-top:8px;">
+      <button class="btn btn-outline btn-sm" id="btnJobAdd"><i class="fas fa-plus"></i> 添加任务</button>
+      <button class="btn btn-outline btn-sm" id="btnSchedSave"><i class="fas fa-save"></i> 保存全局配置</button>
+      <button class="btn btn-outline btn-sm" id="btnSchedRunAll"><i class="fas fa-play"></i> 立即运行全部</button>
+    </div>
+    <div class="schedule-status" id="schedStatus">加载配置中…</div>
+  </div>
+
+  <div id="evidenceSuggest" class="card no-print" style="display:none;padding:16px;margin-top:12px;">
+    <h3 style="font-size:15px;margin-bottom:8px;"><i class="fas fa-check-double"></i> 证据抽取候选（需勾选后写入）</h3>
+    <p style="font-size:12px;color:#666;margin-bottom:8px;">来自 PDF/Word/OCR 或外部信用/司法接口的字段不会自动覆盖表单，请确认后再应用。外部命中不直接改规则分。</p>
+    <div id="evidenceSuggestList"></div>
+    <div class="toolbar-row" style="margin-top:8px;">
+      <button class="btn btn-primary btn-sm" id="btnApplyEvidence" type="button">写入已勾选字段</button>
+      <button class="btn btn-outline btn-sm" id="btnDismissEvidence" type="button">忽略</button>
+    </div>
+  </div>
+
+  <div class="schedule-panel" id="externalRiskPanel">
+    <h4 style="font-size:14px;margin-bottom:6px;"><i class="fas fa-gavel"></i> 信用 / 司法外部证据</h4>
+    <p style="font-size:12px;color:#666;margin-bottom:8px;">按统一社会信用代码查询诉讼、失信、处罚、经营异常。无 API 密钥时跳过并标明未接外部源；演示企业可加载样例。</p>
+    <div class="toolbar-row">
+      <button class="btn btn-outline btn-sm" id="btnLookupExternal" type="button"><i class="fas fa-search"></i> 按信用代码查询</button>
+    </div>
+    <div id="externalRiskStatus" style="font-size:12px;color:#666;margin-top:8px;"></div>
+  </div>
+
+  <div class="schedule-panel admin-only">
+    <h4 style="font-size:14px;margin-bottom:6px;"><i class="fas fa-key"></i> ERP OAuth</h4>
+    <p style="font-size:12px;color:#666;margin-bottom:8px;">Client Secret 只从环境变量读取（<code>ERM_OAUTH_*_SECRET</code>），页面不再填写密钥。可保存 Client ID 与数据 URL。</p>
+    <div id="oauthProviderList"></div>
+    <div class="schedule-grid" style="margin-top:8px;">
+      <div><label>Provider</label><select id="oauthProviderId"><option value="generic">通用 OAuth2</option><option value="yonyou">用友 YonBIP</option><option value="kingdee">金蝶云星空</option></select></div>
+      <div><label>Client ID</label><input type="text" id="oauthClientId"></div>
+      <div style="grid-column:1/-1;"><label>API 数据 URL</label><input type="text" id="oauthApiUrl"></div>
+    </div>
+    <div class="toolbar-row" style="margin-top:8px;">
+      <button class="btn btn-outline btn-sm" id="btnOAuthSave"><i class="fas fa-save"></i> 保存 OAuth 配置</button>
+      <button class="btn btn-outline btn-sm" id="btnOAuthConnect"><i class="fas fa-sign-in-alt"></i> 授权连接</button>
+      <button class="btn btn-outline btn-sm" id="btnOAuthSync"><i class="fas fa-sync"></i> OAuth 同步到表单</button>
+    </div>
+  </div>
+
+  <div class="schedule-panel admin-only">
+    <h4 style="font-size:14px;margin-bottom:6px;"><i class="fas fa-mobile-alt"></i> 移动端 App 推送</h4>
+    <p style="font-size:12px;color:#666;margin-bottom:8px;">FCM Server Key 仅能通过环境变量 <code>ERM_FCM_SERVER_KEY</code> 配置。</p>
+    <div class="schedule-grid">
+      <div><label><input type="checkbox" id="mobileFcmEnabled"> 启用 FCM 推送</label></div>
+      <div style="grid-column:1/-1;"><label>自定义 Push URL（可选）</label><input type="text" id="mobileCustomUrl" placeholder="https://your-push-gateway/notify"></div>
+      <div style="grid-column:1/-1;"><label>App 设备 Token（原生客户端注册后填入）</label><input type="text" id="mobileDeviceToken" placeholder="FCM registration token"></div>
+    </div>
+    <div class="toolbar-row" style="margin-top:8px;">
+      <button class="btn btn-outline btn-sm" id="btnMobileConfigSave"><i class="fas fa-save"></i> 保存移动推送配置</button>
+      <button class="btn btn-outline btn-sm" id="btnMobileRegister"><i class="fas fa-tablet-alt"></i> 注册本设备 Token</button>
+    </div>
+    <div class="schedule-status" id="mobileDeviceStatus">—</div>
+  </div>
+
+  <div class="schedule-panel admin-only">
+    <h4 style="font-size:14px;margin-bottom:6px;"><i class="fas fa-paper-plane"></i> 外部推送（Webhook / 邮件）</h4>
+    <p style="font-size:12px;color:#666;margin-bottom:8px;">SMTP 主机/账号/密码只从环境变量 <code>ERM_SMTP_*</code> 读取，页面不再出现密码框。</p>
+    <div class="schedule-grid">
+      <div><label><input type="checkbox" id="notifyWebhook"> 启用 Webhook</label></div>
+      <div><label>类型</label>
+        <select id="notifyWebhookType"><option value="generic">通用 JSON</option><option value="dingtalk">钉钉</option><option value="wecom">企业微信</option></select>
+      </div>
+      <div style="grid-column:1/-1;"><label>Webhook URL</label><input type="text" id="notifyWebhookUrl" placeholder="https://..."></div>
+      <div><label><input type="checkbox" id="notifyEmail"> 启用邮件</label></div>
+      <div><label>收件人（逗号分隔）</label><input type="text" id="notifyEmailTo" placeholder="a@corp.com,b@corp.com"></div>
+      <div style="grid-column:1/-1;"><label>SMTP 状态</label><input type="text" id="notifySmtpStatus" readonly placeholder="由环境变量配置"></div>
+    </div>
+    <button class="btn btn-outline btn-sm" id="btnNotifyConfigSave" style="margin-top:8px;"><i class="fas fa-save"></i> 保存推送配置</button>
+  </div>
+</div>
+
+<div class="entry-hero no-print">
+  <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;">
+    <strong style="font-size:16px;">填写进度</strong>
+    <span id="progressText" style="font-size:13px;opacity:0.9;">0 / 0 字段</span>
+  </div>
+  <div class="progress-bar"><div class="fill" id="progressFill" style="width:0%;background:linear-gradient(90deg,#6BCB77,#FFD93D);"></div></div>
+  <div id="kpiTrendHint" class="notice notice-info" style="display:none;margin-top:10px;font-size:12px;padding:8px 12px;"></div>
+</div>
+
+<div class="entry-toolbar">
+  <div class="entry-progress" style="display:none;">
+    <div class="progress-label"><span></span><span></span></div>
+    <div class="progress-bar"><div class="fill" style="width:0;"></div></div>
+  </div>
+  <div class="sheet-nav no-print">
+    <button class="btn btn-outline btn-sm" id="btnPrevSheet"><i class="fas fa-chevron-left"></i> 上一页</button>
+    <button class="btn btn-outline btn-sm" id="btnNextSheet">下一页 <i class="fas fa-chevron-right"></i></button>
+  </div>
+</div>
+
+<div class="toolbar-row no-print">
+  <input type="search" id="fieldSearch" class="search-input" placeholder="搜索当前页字段名称…">
+  <button class="btn btn-outline btn-sm" id="btnShowKeyOnly"><i class="fas fa-filter"></i> 仅关键字段</button>
+</div>
+
+<div class="sheet-tabs" id="sheetTabs"></div>
+
+<div class="card">
+  <div id="formContent"><div class="loading-inline"><div class="spinner"></div>加载表单模板…</div></div>
+  <div class="actions no-print">
+    <button class="btn btn-success" id="btnAssess"><i class="fas fa-chart-line"></i> 运行风险评估</button>
+    <button class="btn btn-primary" id="btnSaveArchive"><i class="fas fa-archive"></i> 保存至档案</button>
+    <button class="btn btn-outline" id="btnReset"><i class="fas fa-undo"></i> 重置</button>
+    <button class="btn btn-outline" id="btnLoadDraft" style="display:none;"><i class="fas fa-history"></i> 恢复草稿</button>
+  </div>
+</div>
+
+<div id="previewArea" style="display:none;">
+  <div class="card">
+    <h3><i class="fas fa-chart-bar"></i> 评估结果预览</h3>
+    <div id="previewWarnings"></div>
+    <div class="preview-row">
+      <div class="preview-chart"><canvas id="previewRadar"></canvas></div>
+      <div class="preview-chart"><canvas id="previewBar"></canvas></div>
+    </div>
+    <div style="margin-top:16px;padding:12px 16px;background:#f5f7fa;border-radius:8px;display:flex;justify-content:space-around;flex-wrap:wrap;gap:12px;">
+      <div><strong>综合评分：</strong><span id="previewScore">--</span></div>
+      <div><strong>风险等级：</strong><span id="previewLevel">--</span></div>
+      <div><strong>关键风险：</strong><span id="previewRiskCount">--</span> 项</div>
+      <a href="{{ erm_base }}/report" class="btn btn-primary btn-sm"><i class="fas fa-file-alt"></i> 完整报告</a>
+      <a href="{{ erm_base }}/solution" class="btn btn-outline btn-sm"><i class="fas fa-lightbulb"></i> 解决方案</a>
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+let templateData = {}, formData = {}, sheetNames = [];
+let currentSheetIndex = 0, previewCharts = {}, previewTimer = null, autosaveTimer = null;
+let showKeyOnly = false, fieldSearchQuery = "", lastAssessment = null, kpiHintTimer = null;
+
+async function refreshKpiTrendHint() {
+  const name = (formData["企业基本信息"] || {})["企业名称"]?.toString().trim();
+  const el = document.getElementById("kpiTrendHint");
+  if (!el || !name) { if (el) el.style.display = "none"; return; }
+  clearTimeout(kpiHintTimer);
+  kpiHintTimer = setTimeout(async () => {
+    try {
+      const resp = await fetch(`/api/kpi/timeseries?company=${encodeURIComponent(name)}`);
+      const json = await resp.json();
+      const ts = json.timeseries || json;
+      const count = ts.snapshot_count || 0;
+      if (!count) { el.style.display = "none"; return; }
+      const msg = count >= 2
+        ? `该企业已有 ${count} 次 KPI 快照${ts.last_at ? `（最近 ${ts.last_at.slice(0, 10)}）` : ""}，复评后将自动验证整改效果并更新趋势。`
+        : `已有 1 次 KPI 基线快照，再次评估后将启用时序趋势与 Pearson 相关分析。`;
+      el.innerHTML = `<i class="fas fa-chart-line"></i> ${ERM.escapeHtml(msg)}`;
+      el.style.display = "block";
+    } catch (_) { el.style.display = "none"; }
+  }, 400);
+}
+
+async function init() {
+  const container = document.getElementById("formContent");
+  try {
+    templateData = await ERM.fetchTemplate();
+  } catch (e) {
+    container.innerHTML = `<p class="notice notice-warning"><i class="fas fa-exclamation-triangle"></i> 模板加载失败：${ERM.escapeHtml(e.message || "未知错误")}。请确认服务已启动且 Excel 模板在项目根目录。</p>`;
+    return;
+  }
+  sheetNames = Object.keys(templateData);
+  if (!sheetNames.length) {
+    container.innerHTML = '<p class="notice notice-warning">模板为空，请重新生成 Excel 模板。</p>';
+    return;
+  }
+  sheetNames.forEach(s => { formData[s] = formData[s] || {}; });
+
+  const draft = ERM.getDraft();
+  if (draft?.formData) {
+    Object.assign(formData, draft.formData);
+    document.getElementById("btnLoadDraft").style.display = "inline-flex";
+    updateAutosaveHint(draft.savedAt);
+  }
+
+  renderTabs();
+  renderForm(sheetNames[0]);
+  updateProgress();
+  bindEvents();
+  loadLocalFiles();
+  refreshKpiTrendHint();
+  loadScheduleConfig();
+  loadNotifyConfig();
+  loadOAuthProviders();
+  loadMobileConfig();
+  const qs = new URLSearchParams(location.search);
+  if (qs.get("oauth_ok")) ERM.toast(`OAuth 授权成功: ${qs.get("oauth_ok")}`, "success");
+  if (qs.get("oauth_error")) ERM.toast(`OAuth 失败: ${qs.get("oauth_error")}`, "error");
+}
+
+// 顶层错误兜底，避免一直显示加载中
+function bootEntry() {
+  const api = window.ERM;
+  const container = document.getElementById("formContent");
+  if (!api || typeof api.fetchTemplate !== "function") {
+    if (container) {
+      container.innerHTML = '<p class="notice notice-warning">公共脚本未加载（window.ERM 缺失）。请强制刷新（Ctrl+F5）。若仍失败，请检查 /erm/static/js/common.js 是否被 CDN 改写。</p>';
+    }
+    return;
+  }
+  init().catch(e => {
+    if (container) {
+      const msg = (api.escapeHtml ? api.escapeHtml(e.message || String(e)) : String(e));
+      container.innerHTML = `<p class="notice notice-warning">页面初始化失败：${msg}</p>`;
+    }
+  });
+}
+if (document.readyState === "loading") document.addEventListener("DOMContentLoaded", bootEntry);
+else bootEntry();
+
+function bindEvents() {
+  document.getElementById("btnAssess").onclick = submitAssessment;
+  document.getElementById("btnReset").onclick = resetForm;
+  document.getElementById("btnSaveArchive").onclick = saveArchive;
+  document.getElementById("btnLoadDraft").onclick = () => {
+    const draft = ERM.getDraft();
+    if (draft) { formData = draft.formData; renderForm(sheetNames[currentSheetIndex]); updateProgress(); ERM.toast("已恢复草稿", "success"); }
+  };
+  document.getElementById("btnPrevSheet").onclick = () => navigateSheet(-1);
+  document.getElementById("btnNextSheet").onclick = () => navigateSheet(1);
+  document.getElementById("formContent").addEventListener("input", onFieldInput);
+  document.getElementById("formContent").addEventListener("change", onFieldInput);
+
+  const zone = document.getElementById("uploadZone");
+  const fileInput = document.getElementById("excelFileInput");
+  zone.onclick = () => fileInput.click();
+  zone.ondragover = e => { e.preventDefault(); zone.classList.add("dragover"); };
+  zone.ondragleave = () => zone.classList.remove("dragover");
+  zone.ondrop = e => { e.preventDefault(); zone.classList.remove("dragover"); if (e.dataTransfer.files?.length) handleExcelImport(e.dataTransfer.files); };
+  fileInput.onchange = () => { if (fileInput.files?.length) handleExcelImport(fileInput.files); };
+
+  document.getElementById("btnImportLocal").onclick = async () => {
+    const fn = document.getElementById("localFileSelect").value;
+    if (!fn) { ERM.toast("请选择文件", "info"); return; }
+    try {
+      const res = await ERM.importLocalExcel(fn);
+      applyImportedData(res.form_data);
+      ERM.toast(res.message, "success");
+    } catch (e) { ERM.toast(e.message, "error"); }
+  };
+
+  document.getElementById("fieldSearch").oninput = e => { fieldSearchQuery = e.target.value.trim().toLowerCase(); renderForm(sheetNames[currentSheetIndex]); };
+  document.getElementById("btnShowKeyOnly").onclick = () => { showKeyOnly = !showKeyOnly; document.getElementById("btnShowKeyOnly").classList.toggle("btn-primary", showKeyOnly); renderForm(sheetNames[currentSheetIndex]); };
+
+  document.addEventListener("keydown", e => {
+    if (e.ctrlKey && e.key === "s") { e.preventDefault(); ERM.saveDraft(formData); updateAutosaveHint(new Date().toISOString()); ERM.toast("草稿已保存", "success"); }
+    if (e.ctrlKey && e.key === "Enter") { e.preventDefault(); submitAssessment(); }
+  });
+  document.getElementById("btnApplyEvidence")?.addEventListener("click", applyPickedEvidence);
+  document.getElementById("btnDismissEvidence")?.addEventListener("click", () => {
+    const box = document.getElementById("evidenceSuggest");
+    if (box) box.style.display = "none";
+  });
+  document.getElementById("btnLookupExternal")?.addEventListener("click", lookupExternalRisk);
+}
+
+async function loadLocalFiles() {
+  try {
+    const resp = await fetch("/api/import/local");
+    const json = await resp.json();
+    const sel = document.getElementById("localFileSelect");
+    sel.innerHTML = '<option value="">— 选择本地 Excel —</option>';
+    (json.files || []).forEach(f => {
+      const opt = document.createElement("option");
+      opt.value = f.name;
+      opt.textContent = f.name;
+      sel.appendChild(opt);
+    });
+  } catch (_) {}
+}
+
+async function handleExcelImport(fileOrList) {
+  try {
+    ERM.toast("正在导入…", "info");
+    const files = fileOrList && fileOrList.length !== undefined && !fileOrList.name
+      ? fileOrList
+      : (fileOrList ? [fileOrList] : []);
+    let res;
+    if (files.length > 1 || (files[0] && !/\.xlsx?$/i.test(files[0].name) && !/\.xlsm$/i.test(files[0].name))) {
+      res = await ERM.importPackageFiles(files);
+    } else if (files.length === 1 && /\.xlsx?$|\.xlsm$/i.test(files[0].name)) {
+      // single excel: still prefer package path for gate feedback when available
+      try { res = await ERM.importPackageFiles(files); }
+      catch (_) { res = await ERM.importExcelFile(files[0]); }
+    } else {
+      res = await ERM.importPackageFiles(files);
+    }
+    applyImportedData(res.form_data);
+    showEvidenceSuggestions(res.suggested_fields || res.supplements && res.supplements.suggested_fields);
+    if (res.data_quality_gate) {
+      const g = res.data_quality_gate;
+      ERM.toast(`门禁：${g.gate_label}（置信度 ${g.confidence_score}%）`, g.gate === "pass" ? "success" : "info");
+    } else {
+      ERM.toast(res.message || "导入成功", "success");
+    }
+    if (res.supplements) {
+      try { sessionStorage.setItem("erm_supplements", JSON.stringify(res.supplements)); } catch (_) {}
+    }
+  } catch (e) { ERM.toast(e.message, "error"); }
+}
+
+function applyImportedData(data) {
+  Object.assign(formData, data);
+  ERM.saveDraft(formData);
+  updateAutosaveHint(new Date().toISOString());
+  renderTabs();
+  renderForm(sheetNames[currentSheetIndex]);
+  updateProgress();
+  schedulePreview();
+}
+
+function showEvidenceSuggestions(items) {
+  const box = document.getElementById("evidenceSuggest");
+  const list = document.getElementById("evidenceSuggestList");
+  if (!box || !list) return;
+  const rows = Array.isArray(items) ? items : [];
+  if (!rows.length) { box.style.display = "none"; return; }
+  list.innerHTML = rows.map((it, i) => `
+    <label style="display:flex;gap:8px;align-items:flex-start;font-size:13px;margin:6px 0;">
+      <input type="checkbox" class="evidence-pick" data-idx="${i}" checked>
+      <span><strong>${ERM.escapeHtml(it.sheet)}</strong> / ${ERM.escapeHtml(it.field)}
+        = ${ERM.escapeHtml(it.value)}
+        <small style="color:#888;">（${ERM.escapeHtml(it.source || "")} ${it.confidence || ""}%）</small>
+      </span>
+    </label>`).join("");
+  box.dataset.payload = JSON.stringify(rows);
+  box.style.display = "block";
+}
+
+function applyPickedEvidence() {
+  const box = document.getElementById("evidenceSuggest");
+  if (!box || !box.dataset.payload) return;
+  const rows = JSON.parse(box.dataset.payload);
+  document.querySelectorAll(".evidence-pick:checked").forEach(cb => {
+    const it = rows[+cb.dataset.idx];
+    if (!it) return;
+    if (!formData[it.sheet]) formData[it.sheet] = {};
+    formData[it.sheet][it.field] = it.value;
+  });
+  ERM.saveDraft(formData);
+  renderForm(sheetNames[currentSheetIndex]);
+  updateProgress();
+  renderTabs();
+  box.style.display = "none";
+  ERM.toast("已写入勾选的证据字段", "success");
+}
+
+async function lookupExternalRisk() {
+  const basic = formData["企业基本信息"] || {};
+  const uscc = String(basic["统一社会信用代码"] || "").trim();
+  const name = String(basic["企业名称"] || "").trim();
+  const status = document.getElementById("externalRiskStatus");
+  if (status) status.textContent = "正在查询…";
+  try {
+    const resp = await fetch("/api/external-risk", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ uscc, company_name: name }),
+    });
+    const json = await resp.json();
+    if (!resp.ok) throw new Error(json.error || "查询失败");
+    if (status) {
+      status.textContent = (json.note || "") + (json.connected ? "（已接外部源）" : "");
+    }
+    const recs = json.records || [];
+    if (recs.length) {
+      ERM.toast(`外部证据 ${recs.length} 条，请勾选后写入`, "info");
+    } else {
+      ERM.toast(json.note || "无外部命中", "info");
+    }
+    showEvidenceSuggestions(json.suggested_fields || []);
+  } catch (e) {
+    if (status) status.textContent = e.message;
+    ERM.toast(e.message, "error");
+  }
+}
+
+function adminFetch(url, opts) {
+  opts = opts || {};
+  const headers = Object.assign({}, ERM.adminHeaders(true), opts.headers || {});
+  return fetch(url, Object.assign({}, opts, { headers }));
+}
+
+function onFieldInput(e) {
+  const sheet = e.target.getAttribute("data-sheet");
+  const field = e.target.getAttribute("data-field");
+  if (!sheet || !field) return;
+  updateField(sheet, field, e.target.value, false);
+  if (sheet === "企业基本信息" && field === "企业名称") refreshKpiTrendHint();
+  if (sheet === "企业基本信息" && field === "统一社会信用代码") {
+    const value = e.target.value;
+    const raw = String(value || "").replace(/[\s-]/g, "").toUpperCase();
+    if (raw && raw.length === 18) {
+      fetch("/api/validate/uscc?code=" + encodeURIComponent(raw)).then(r => r.json()).then(j => {
+        if (j && j.ok === false) ERM.toast(j.message || "信用代码无效", "error");
+        else if (j && j.ok && j.normalized && j.normalized !== value) updateField(sheet, field, j.normalized, false);
+      }).catch(() => {});
+    }
+  }
+}
+
+function renderTabs() {
+  const container = document.getElementById("sheetTabs");
+  container.innerHTML = sheetNames.map((name, i) => {
+    const stats = getSheetFillStats(name);
+    let cls = "sheet-tab" + (i === currentSheetIndex ? " active" : "") + (stats.complete ? " complete" : stats.partial ? " partial" : "");
+    return `<div class="${cls}" data-index="${i}">${ERM.escapeHtml(name)}</div>`;
+  }).join("");
+  container.querySelectorAll(".sheet-tab").forEach(tab => tab.onclick = () => switchSheet(+tab.dataset.index));
+}
+
+function getSheetFillStats(sheetName) {
+  const info = templateData[sheetName];
+  if (!info) return { filled: 0, total: 0, partial: false, complete: false };
+  let filled = 0;
+  info.fields.forEach(f => { if ((formData[sheetName] || {})[f.name]?.toString().trim()) filled++; });
+  const total = info.fields.length;
+  return { filled, total, partial: filled > 0 && filled < total, complete: total > 0 && filled >= total };
+}
+
+function renderForm(sheetName) {
+  const info = templateData[sheetName];
+  if (!info) return;
+  let fields = info.fields;
+  if (showKeyOnly) fields = fields.filter(f => f.is_key);
+  if (fieldSearchQuery) fields = fields.filter(f => f.name.toLowerCase().includes(fieldSearchQuery));
+
+  const container = document.getElementById("formContent");
+  if (!fields.length) {
+    container.innerHTML = `<p style="color:#888;padding:20px;">无匹配字段</p>`;
+    return;
+  }
+
+  let html = `<h3>${ERM.escapeHtml(sheetName)} <span style="font-size:12px;background:#e3f2fd;color:#2d6a9f;padding:2px 10px;border-radius:10px;">${fields.length} 个字段</span></h3><div class="form-grid">`;
+  fields.forEach(field => {
+    const keyTag = field.is_key ? ' <span class="key-tag">关键</span>' : '';
+    const val = (formData[sheetName] || {})[field.name] || "";
+    const inputType = ERM.fieldInputType(field);
+    const hint = field.hint ? `<span class="field-hint">${ERM.escapeHtml(field.hint)}</span>` : "";
+    const ds = `data-sheet="${ERM.escapeHtml(sheetName)}" data-field="${ERM.escapeHtml(field.name)}"`;
+    if (inputType === "select") {
+      const opts = String(field.options || "").split(/[|，,]/).map(o => o.trim()).filter(Boolean);
+      html += `<div class="form-group"><label>${ERM.escapeHtml(field.name)}${keyTag}</label><select ${ds}><option value="">-- 请选择 --</option>`;
+      opts.forEach(o => { html += `<option value="${ERM.escapeHtml(o)}" ${val === o ? "selected" : ""}>${ERM.escapeHtml(o)}</option>`; });
+      html += `</select>${hint}</div>`;
+    } else if (inputType === "textarea") {
+      html += `<div class="form-group"><label>${ERM.escapeHtml(field.name)}${keyTag}</label><textarea ${ds} rows="3">${ERM.escapeHtml(val)}</textarea>${hint}</div>`;
+    } else {
+      html += `<div class="form-group"><label>${ERM.escapeHtml(field.name)}${keyTag}</label><input type="${inputType}" ${ds} value="${ERM.escapeHtml(val)}" placeholder="请输入${ERM.escapeHtml(field.name)}"${inputType === "number" ? ' step="any"' : ""}>${hint}</div>`;
+    }
+  });
+  html += "</div>";
+  container.innerHTML = html;
+}
+
+function switchSheet(i) { if (i >= 0 && i < sheetNames.length) { currentSheetIndex = i; renderTabs(); renderForm(sheetNames[i]); } }
+function navigateSheet(d) { switchSheet(currentSheetIndex + d); }
+
+function updateField(sheet, field, value) {
+  if (!formData[sheet]) formData[sheet] = {};
+  formData[sheet][field] = value;
+  scheduleAutosave(); schedulePreview(); updateProgress(); renderTabs();
+}
+
+function scheduleAutosave() {
+  clearTimeout(autosaveTimer);
+  autosaveTimer = setTimeout(() => { ERM.saveDraft(formData); updateAutosaveHint(new Date().toISOString()); }, 800);
+}
+
+function updateAutosaveHint(iso) {
+  const el = document.getElementById("autosaveHint");
+  if (!iso) { el.textContent = ""; return; }
+  el.innerHTML = `<i class="fas fa-save"></i> 已保存 ${new Date(iso).toLocaleTimeString("zh-CN")}`;
+}
+
+function updateProgress() {
+  let total = 0, filled = 0;
+  sheetNames.forEach(n => { const s = getSheetFillStats(n); total += s.total; filled += s.filled; });
+  const pct = total ? Math.round(filled / total * 100) : 0;
+  document.getElementById("progressText").textContent = `${filled} / ${total}（${pct}%）`;
+  const fill = document.getElementById("progressFill");
+  fill.style.width = pct + "%";
+  fill.style.background = pct >= 80 ? "#6BCB77" : pct >= 40 ? "#FFD93D" : "#2d6a9f";
+}
+
+function schedulePreview() { clearTimeout(previewTimer); previewTimer = setTimeout(runPreview, 1500); }
+
+async function runPreview() {
+  if (!sheetNames.some(s => templateData[s]?.scoring && getSheetFillStats(s).filled > 0)) return;
+  try { showPreview(await ERM.postAssess(collectFormData()), true); } catch (_) {}
+}
+
+function collectFormData() {
+  const all = {};
+  for (const [sheet, info] of Object.entries(templateData)) {
+    all[sheet] = {};
+    info.fields.forEach(f => { all[sheet][f.name] = (formData[sheet] || {})[f.name] || ""; });
+  }
+  return all;
+}
+
+async function submitAssessment() {
+  const btn = document.getElementById("btnAssess");
+  btn.disabled = true;
+  btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> 评估中…';
+  try {
+    const result = await ERM.postAssess(collectFormData(), { strict: true, saveHistory: true });
+    lastAssessment = result;
+    ERM.setAssessment(result);
+    ERM.saveDraft(collectFormData());
+    showPreview(result, false);
+    result.warnings?.forEach(w => ERM.toast(w, "info"));
+    ERM.fetchHistory().then(() => {
+      const sel = document.getElementById("globalHistorySelect");
+      if (sel && result.history_id) sel.value = result.history_id;
+    });
+    btn.innerHTML = '<i class="fas fa-check"></i> 完成';
+    btn.style.background = "#6BCB77";
+    ERM.toast("评估完成并已存入档案", "success");
+    ERM.pushBrowserNotifications(result.alerts, result.company_name);
+    ERM.refreshNotificationBadge();
+    setTimeout(() => { btn.innerHTML = '<i class="fas fa-chart-line"></i> 运行风险评估'; btn.style.background = ""; btn.disabled = false; }, 2000);
+  } catch (e) {
+    ERM.toast(e.message, "error");
+    btn.disabled = false;
+    btn.innerHTML = '<i class="fas fa-chart-line"></i> 运行风险评估';
+  }
+}
+
+async function saveArchive() {
+  try {
+    const data = lastAssessment || await ERM.postAssess(collectFormData());
+    await ERM.saveToHistory(data, prompt("档案备注（可选）：") || "");
+    ERM.toast("已保存至评估档案", "success");
+    ERM.fetchHistory();
+  } catch (e) { ERM.toast(e.message, "error"); }
+}
+
+function showPreview(result, silent) {
+  document.getElementById("previewArea").style.display = "block";
+  const suppressed = result.scoring_suppressed || result.overall_level === "数据不足";
+  document.getElementById("previewScore").textContent = suppressed ? "—" : Number(result.overall_score || 0).toFixed(2);
+  document.getElementById("previewLevel").textContent = result.overall_level || "—";
+  document.getElementById("previewRiskCount").textContent = (result.key_risks || []).length;
+  const warnEl = document.getElementById("previewWarnings");
+  warnEl.innerHTML = result.warnings?.map(w => `<div class="notice notice-warning">${ERM.escapeHtml(w)}</div>`).join("") || "";
+  if (suppressed) {
+    warnEl.insertAdjacentHTML("afterbegin", '<div class="notice notice-warning">数据门禁未通过：不展示低风险分数，请先补齐关键字段。</div>');
+  }
+  ERM.destroyCharts(previewCharts);
+  const dims = Array.isArray(result.dimensions) ? result.dimensions : [];
+  if (dims.length && document.getElementById("previewRadar")) {
+    previewCharts.radar = ERM.createRadarChart(document.getElementById("previewRadar"), dims);
+    previewCharts.bar = ERM.createBarChart(document.getElementById("previewBar"), dims);
+  }
+  if (!silent) document.getElementById("previewArea").scrollIntoView({ behavior: "smooth" });
+}
+
+function resetForm() {
+  if (!confirm("确定清空所有数据？草稿也将删除。")) return;
+  sheetNames.forEach(s => { formData[s] = {}; });
+  ERM.clearDraft();
+  renderForm(sheetNames[currentSheetIndex]);
+  updateProgress(); renderTabs();
+  document.getElementById("previewArea").style.display = "none";
+  ERM.toast("已重置", "info");
+}
+
+document.getElementById("btnSyncCsv")?.addEventListener("click", async () => {
+  const payload = document.getElementById("integrationPayload").value;
+  const out = document.getElementById("integrationResult");
+  try {
+    const resp = await fetch("/api/integrations/csv", {
+      method: "POST", headers: { "Content-Type": "text/plain" },
+      body: payload,
+    });
+    const json = await resp.json();
+    if (!resp.ok) throw new Error(json.error);
+    Object.entries(json.form_data || {}).forEach(([sheet, fields]) => {
+      formData[sheet] = { ...(formData[sheet] || {}), ...fields };
+    });
+    renderForm(sheetNames[currentSheetIndex]); updateProgress();
+    out.textContent = `已同步 ${Object.keys(json.updated_fields || {}).length} 个字段`;
+    ERM.toast("CSV 同步成功", "success");
+  } catch (e) { ERM.toast(e.message, "error"); }
+});
+
+document.getElementById("btnSyncJson")?.addEventListener("click", async () => {
+  try {
+    const body = JSON.parse(document.getElementById("integrationPayload").value || "{}");
+    const merged = await ERM.syncErpFinancial({ ...collectFormData(), ...body.form_data });
+    Object.entries(merged).forEach(([sheet, fields]) => { formData[sheet] = { ...(formData[sheet] || {}), ...fields }; });
+    renderForm(sheetNames[currentSheetIndex]); updateProgress();
+    document.getElementById("integrationResult").textContent = "JSON/财务 API 同步完成";
+    ERM.toast("同步成功", "success");
+  } catch (e) { ERM.toast(e.message, "error"); }
+});
+
+document.getElementById("btnMonitorSnapshot")?.addEventListener("click", async () => {
+  try {
+    const resp = await fetch("/api/monitoring/snapshot", {
+      method: "POST", headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ form_data: collectFormData() }),
+    });
+    const json = await resp.json();
+    if (!resp.ok) throw new Error(json.error);
+    document.getElementById("integrationResult").innerHTML =
+      `快照：评分 ${json.overall_score} · ${json.overall_level} · KRI健康度 ${json.kri_dashboard?.health_score}% · 流动性 ${json.liquidity_status}`;
+    ERM.toast("监控快照已生成", "success");
+  } catch (e) { ERM.toast(e.message, "error"); }
+});
+
+async function loadScheduleConfig() {
+  const statusEl = document.getElementById("schedStatus");
+  const tbody = document.getElementById("jobsTableBody");
+  try {
+    const resp = await fetch("/api/integrations/schedule");
+    if (!resp.ok) return;
+    const json = await resp.json();
+    const s = json.schedule || {};
+    document.getElementById("schedGlobalEnabled").checked = !!s.global_enabled;
+    document.getElementById("schedMaxParallel").value = s.max_parallel_jobs || 4;
+    const jobs = s.jobs || [];
+    if (!jobs.length) {
+      tbody.innerHTML = '<tr><td colspan="5" style="color:#888;">暂无任务，请下方添加</td></tr>';
+    } else {
+      tbody.innerHTML = jobs.map(j => {
+        const src = j.source_type === "oauth_erp" ? (j.oauth_provider_id || "oauth") : (j.source_path || j.source_url || "—");
+        const stCls = j.last_status === "ok" ? "job-status-ok" : j.last_status === "error" ? "job-status-error" : "";
+        return `<tr>
+          <td>${ERM.escapeHtml(j.company_name || "—")}</td>
+          <td>${j.interval_minutes}m</td>
+          <td>${ERM.escapeHtml(j.source_type)}<br><small>${ERM.escapeHtml(String(src).slice(0, 40))}</small></td>
+          <td class="${stCls}">${ERM.escapeHtml(j.last_status || "—")}<br><small>${ERM.escapeHtml((j.last_message || "").slice(0, 30))}</small></td>
+          <td>
+            <button class="btn btn-outline btn-sm btn-run-job" data-id="${ERM.escapeHtml(j.id)}">运行</button>
+            <button class="btn btn-outline btn-sm btn-del-job" data-id="${ERM.escapeHtml(j.id)}">删</button>
+          </td></tr>`;
+      }).join("");
+      tbody.querySelectorAll(".btn-run-job").forEach(btn => btn.onclick = () => runSyncJob(btn.dataset.id));
+      tbody.querySelectorAll(".btn-del-job").forEach(btn => btn.onclick = () => deleteSyncJob(btn.dataset.id));
+    }
+    const sched = json.scheduler || {};
+    statusEl.textContent = [
+      `${jobs.length} 个任务 · 并行 ${s.max_parallel_jobs || 4}`,
+      sched.running ? "调度器运行中" : "",
+      sched.last_tick ? `最近检查 ${sched.last_tick.slice(0, 16)}` : "",
+    ].filter(Boolean).join(" · ");
+  } catch (e) {
+    statusEl.textContent = "配置加载失败";
+  }
+}
+
+function buildJobPayload() {
+  const st = document.getElementById("jobSourceType").value;
+  const src = document.getElementById("jobSource").value.trim();
+  const job = {
+    company_name: document.getElementById("jobCompany").value.trim(),
+    interval_minutes: parseInt(document.getElementById("jobInterval").value, 10) || 60,
+    source_type: st,
+    auto_assess: document.getElementById("jobAutoAssess").checked,
+    auto_notify: document.getElementById("jobAutoNotify").checked,
+    auto_save_history: document.getElementById("jobAutoHistory").checked,
+    enabled: true,
+  };
+  if (st === "csv_file") job.source_path = src;
+  else if (st === "oauth_erp") job.oauth_provider_id = src || document.getElementById("oauthProviderId").value;
+  else job.source_url = src;
+  return job;
+}
+
+async function deleteSyncJob(id) {
+  if (!confirm("删除此同步任务？")) return;
+  await adminFetch(`/api/integrations/schedule/jobs/${id}`, { method: "DELETE" });
+  loadScheduleConfig();
+}
+
+async function runSyncJob(id) {
+  const statusEl = document.getElementById("schedStatus");
+  statusEl.textContent = `执行任务 ${id}…`;
+  try {
+    const resp = await adminFetch(`/api/integrations/schedule/run?job_id=${encodeURIComponent(id)}`, { method: "POST" });
+    const json = await resp.json();
+    statusEl.textContent = json.message || JSON.stringify(json);
+    ERM.refreshNotificationBadge();
+    loadScheduleConfig();
+  } catch (e) { statusEl.textContent = e.message; }
+}
+
+document.getElementById("jobSourceType")?.addEventListener("change", () => {
+  const st = document.getElementById("jobSourceType").value;
+  document.getElementById("jobSourceLabel").textContent =
+    st === "oauth_erp" ? "OAuth Provider ID" : st === "csv_file" ? "本地文件路径" : "URL";
+  if (st === "oauth_erp") document.getElementById("jobSource").placeholder = "generic / yonyou / kingdee";
+});
+
+document.getElementById("btnJobAdd")?.addEventListener("click", async () => {
+  try {
+    const resp = await adminFetch("/api/integrations/schedule/jobs", {
+      method: "POST", headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ job: buildJobPayload() }),
+    });
+    const json = await resp.json();
+    if (!resp.ok) throw new Error(json.error);
+    ERM.toast("任务已添加", "success");
+    loadScheduleConfig();
+  } catch (e) { ERM.toast(e.message, "error"); }
+});
+
+document.getElementById("btnSchedSave")?.addEventListener("click", async () => {
+  try {
+    const resp = await adminFetch("/api/integrations/schedule", {
+      method: "PUT", headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        schedule: {
+          global_enabled: document.getElementById("schedGlobalEnabled").checked,
+          max_parallel_jobs: parseInt(document.getElementById("schedMaxParallel").value, 10) || 4,
+        },
+      }),
+    });
+    if (!resp.ok) throw new Error((await resp.json()).error);
+    ERM.toast("全局调度配置已保存", "success");
+    loadScheduleConfig();
+  } catch (e) { ERM.toast(e.message, "error"); }
+});
+
+document.getElementById("btnSchedRunAll")?.addEventListener("click", async () => {
+  const statusEl = document.getElementById("schedStatus");
+  statusEl.textContent = "并行执行全部任务…";
+  try {
+    const resp = await adminFetch("/api/integrations/schedule/run", { method: "POST" });
+    const json = await resp.json();
+    statusEl.textContent = `完成 ${json.jobs_run || 0} 个任务，成功 ${json.jobs_ok || 0} 个`;
+    ERM.refreshNotificationBadge();
+    loadScheduleConfig();
+  } catch (e) { statusEl.textContent = e.message; }
+});
+
+async function loadOAuthProviders() {
+  try {
+    const resp = await fetch("/api/integrations/oauth/providers");
+    const json = await resp.json();
+    const list = document.getElementById("oauthProviderList");
+    list.innerHTML = (json.connections || []).map(c =>
+      `<span class="oauth-badge ${c.connected ? "oauth-connected" : "oauth-disconnected"}" style="margin-right:8px;">
+        ${ERM.escapeHtml(c.name)}: ${c.connected ? "已连接" : "未连接"}${c.company_name ? " · " + ERM.escapeHtml(c.company_name) : ""}
+      </span>`).join("");
+    const pid = document.getElementById("oauthProviderId").value;
+    const p = (json.providers || []).find(x => x.id === pid) || json.providers?.[0];
+    if (p) {
+      document.getElementById("oauthClientId").value = p.client_id || "";
+      document.getElementById("oauthApiUrl").value = p.api_data_url || "";
+    }
+  } catch (_) {}
+}
+
+document.getElementById("oauthProviderId")?.addEventListener("change", loadOAuthProviders);
+
+document.getElementById("btnOAuthSave")?.addEventListener("click", async () => {
+  const pid = document.getElementById("oauthProviderId").value;
+  const body = {
+    enabled: true,
+    client_id: document.getElementById("oauthClientId").value.trim(),
+    api_data_url: document.getElementById("oauthApiUrl").value.trim(),
+  };
+  try {
+    const resp = await adminFetch(`/api/integrations/oauth/providers/${pid}`, {
+      method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body),
+    });
+    if (!resp.ok) throw new Error((await resp.json()).error);
+    ERM.toast("OAuth 配置已保存", "success");
+    loadOAuthProviders();
+  } catch (e) { ERM.toast(e.message, "error"); }
+});
+
+document.getElementById("btnOAuthConnect")?.addEventListener("click", async () => {
+  const pid = document.getElementById("oauthProviderId").value;
+  const company = (formData["企业基本信息"] || {})["企业名称"] || "";
+  try {
+    const resp = await fetch(`/api/integrations/oauth/authorize?provider_id=${pid}&company=${encodeURIComponent(company)}`);
+    const json = await resp.json();
+    if (!resp.ok) throw new Error(json.error);
+    window.location.href = json.authorization_url;
+  } catch (e) { ERM.toast(e.message, "error"); }
+});
+
+document.getElementById("btnOAuthSync")?.addEventListener("click", async () => {
+  try {
+    const resp = await adminFetch("/api/integrations/oauth/sync", {
+      method: "POST", headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        provider_id: document.getElementById("oauthProviderId").value,
+        company_name: document.getElementById("jobCompany").value.trim() || (formData["企业基本信息"] || {})["企业名称"],
+        form_data: collectFormData(),
+      }),
+    });
+    const json = await resp.json();
+    if (!resp.ok) throw new Error(json.error);
+    Object.entries(json.form_data || {}).forEach(([sheet, fields]) => {
+      formData[sheet] = { ...(formData[sheet] || {}), ...fields };
+    });
+    renderForm(sheetNames[currentSheetIndex]); updateProgress();
+    document.getElementById("integrationResult").textContent = json.message;
+    ERM.toast("OAuth 数据已同步", "success");
+  } catch (e) { ERM.toast(e.message, "error"); }
+});
+
+async function loadMobileConfig() {
+  try {
+    const [cfgResp, devResp] = await Promise.all([
+      fetch("/api/notifications/mobile-config"),
+      fetch("/api/notifications/devices"),
+    ]);
+    const cfg = await cfgResp.json();
+    const dev = await devResp.json();
+    document.getElementById("mobileFcmEnabled").checked = !!cfg.fcm_enabled;
+    document.getElementById("mobileCustomUrl").value = cfg.custom_push_url || "";
+    document.getElementById("mobileDeviceStatus").textContent =
+      `已注册设备 ${dev.total || 0} 个 · 本机 ID: ${localStorage.getItem("erm_device_id") || "—"}`;
+  } catch (_) {}
+}
+
+document.getElementById("btnMobileConfigSave")?.addEventListener("click", async () => {
+  const body = {
+    fcm_enabled: document.getElementById("mobileFcmEnabled").checked,
+    custom_push_url: document.getElementById("mobileCustomUrl").value.trim(),
+  };
+  try {
+    const resp = await adminFetch("/api/notifications/mobile-config", {
+      method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body),
+    });
+    if (!resp.ok) throw new Error((await resp.json()).error);
+    ERM.toast("移动推送配置已保存", "success");
+  } catch (e) { ERM.toast(e.message, "error"); }
+});
+
+document.getElementById("btnMobileRegister")?.addEventListener("click", async () => {
+  const token = document.getElementById("mobileDeviceToken").value.trim()
+    || localStorage.getItem("erm_device_id");
+  if (!token) { ERM.toast("请填写 FCM Token 或使用浏览器自动 ID", "info"); return; }
+  try {
+    await ERM.registerMobileDevice(token, token.startsWith("web-") ? "web" : "fcm",
+      (formData["企业基本信息"] || {})["企业名称"] || "");
+    ERM.toast("设备已注册", "success");
+    loadMobileConfig();
+  } catch (e) { ERM.toast(e.message, "error"); }
+});
+
+async function loadNotifyConfig() {
+  try {
+    const resp = await fetch("/api/notifications/config");
+    const cfg = await resp.json();
+    document.getElementById("notifyWebhook").checked = !!cfg.webhook_enabled;
+    document.getElementById("notifyWebhookType").value = cfg.webhook_type || "generic";
+    document.getElementById("notifyWebhookUrl").value = cfg.webhook_url || "";
+    document.getElementById("notifyEmail").checked = !!cfg.email_enabled;
+    document.getElementById("notifyEmailTo").value = (cfg.email_to || []).join(",");
+    const smtpEl = document.getElementById("notifySmtpStatus");
+    if (smtpEl) {
+      smtpEl.value = cfg.smtp_configured
+        ? `已配置 ${cfg.smtp_host || ""}:${cfg.smtp_port || 587}`
+        : "未配置（环境变量 ERM_SMTP_HOST / ERM_SMTP_PASSWORD）";
+    }
+  } catch (_) {}
+}
+
+document.getElementById("btnNotifyConfigSave")?.addEventListener("click", async () => {
+  try {
+    const body = {
+      webhook_enabled: document.getElementById("notifyWebhook").checked,
+      webhook_type: document.getElementById("notifyWebhookType").value,
+      webhook_url: document.getElementById("notifyWebhookUrl").value.trim(),
+      email_enabled: document.getElementById("notifyEmail").checked,
+      email_to: document.getElementById("notifyEmailTo").value.split(",").map(s => s.trim()).filter(Boolean),
+    };
+    const resp = await adminFetch("/api/notifications/config", {
+      method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body),
+    });
+    if (!resp.ok) throw new Error((await resp.json()).error);
+    ERM.toast("推送配置已保存", "success");
+  } catch (e) { ERM.toast(e.message, "error"); }
+});
+
+// init() 已在上方通过 init().catch() 调用
+</script>
+{% endblock %}

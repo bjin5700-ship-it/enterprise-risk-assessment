@@ -1,0 +1,10 @@
+{
+  "source": "csv",
+  "payload": {
+    "rows": 2
+  },
+  "result": {
+    "fields_updated": 2
+  },
+  "at": "20260709_105457"
+}

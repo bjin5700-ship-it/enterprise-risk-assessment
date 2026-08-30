@@ -1,0 +1,11 @@
+{
+  "source": "scheduled_sync",
+  "payload": {
+    "job_id": "default",
+    "source_type": "csv_file"
+  },
+  "result": {
+    "fields": 4
+  },
+  "at": "20260712_042705"
+}

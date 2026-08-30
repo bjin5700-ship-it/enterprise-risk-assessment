@@ -1,0 +1,176 @@
+{
+  "company_name": "X",
+  "overall_score": 1.0,
+  "overall_level": "数据不足",
+  "scoring_suppressed": true,
+  "data_quality_gate": {
+    "gate": "block",
+    "gate_label": "数据不足 · 不建议直接决策",
+    "confidence_score": 5,
+    "key_completion_pct": 0.7,
+    "completion_pct": 0.3,
+    "scoring_sheets_filled": 0,
+    "scoring_sheets_total": 20,
+    "missing_key_fields": [],
+    "empty_critical_sheets": [
+      "财务风险",
+      "经营风险",
+      "法律合规风险",
+      "安全生产风险"
+    ],
+    "decision_impact": [
+      "当前置信度偏低，综合评分与整改优先级可能偏差较大，勿作为董事会终局依据。",
+      "优先补齐企业基本信息、财务、经营、合规、安全等高权重表。",
+      "未填关键表：财务风险、经营风险、法律合规风险、安全生产风险"
+    ],
+    "recommended_min_key_pct": 50,
+    "recommended_min_confidence": 60
+  },
+  "assessed_at": "2026-08-21T22:31:17.697983",
+  "form_stats": {
+    "total_fields": 332,
+    "filled_fields": 1,
+    "completion_pct": 0.3,
+    "key_total": 141,
+    "key_filled": 1,
+    "key_completion_pct": 0.7,
+    "sheet_stats": {
+      "企业基本信息": {
+        "total": 22,
+        "filled": 1,
+        "complete": false,
+        "partial": true
+      },
+      "经营风险": {
+        "total": 20,
+        "filled": 0,
+        "complete": false,
+        "partial": false
+      },
+      "财务风险": {
+        "total": 20,
+        "filled": 0,
+        "complete": false,
+        "partial": false
+      },
+      "生产运营风险": {
+        "total": 19,
+        "filled": 0,
+        "complete": false,
+        "partial": false
+      },
+      "安全生产风险": {
+        "total": 24,
+        "filled": 0,
+        "complete": false,
+        "partial": false
+      },
+      "环境风险": {
+        "total": 21,
+        "filled": 0,
+        "complete": false,
+        "partial": false
+      },
+      "法律合规风险": {
+        "total": 16,
+        "filled": 0,
+        "complete": false,
+        "partial": false
+      },
+      "供应链风险": {
+        "total": 21,
+        "filled": 0,
+        "complete": false,
+        "partial": false
+      },
+      "技术风险": {
+        "total": 18,
+        "filled": 0,
+        "complete": false,
+        "partial": false
+      },
+      "人力资源风险": {
+        "total": 19,
+        "filled": 0,
+        "complete": false,
+        "partial": false
+      },
+      "信用风险": {
+        "total": 17,
+        "filled": 0,
+        "complete": false,
+        "partial": false
+      },
+      "综合评估": {
+        "total": 17,
+        "filled": 0,
+        "complete": false,
+        "partial": false
+      },
+      "关联方与集团风险": {
+        "total": 12,
+        "filled": 0,
+        "complete": false,
+        "partial": false
+      },
+      "项目投资风险": {
+        "total": 14,
+        "filled": 0,
+        "complete": false,
+        "partial": false
+      },
+      "行业政策风险": {
+        "total": 12,
+        "filled": 0,
+        "complete": false,
+        "partial": false
+      },
+      "税务风险": {
+        "total": 14,
+        "filled": 0,
+        "complete": false,
+        "partial": false
+      },
+      "战略与声誉风险": {
+        "total": 9,
+        "filled": 0,
+        "complete": false,
+        "partial": false
+      },
+      "业务连续性风险": {
+        "total": 10,
+        "filled": 0,
+        "complete": false,
+        "partial": false
+      },
+      "数据隐私合规风险": {
+        "total": 9,
+        "filled": 0,
+        "complete": false,
+        "partial": false
+      },
+      "公司治理风险": {
+        "total": 9,
+        "filled": 0,
+        "complete": false,
+        "partial": false
+      },
+      "反贿赂道德合规风险": {
+        "total": 9,
+        "filled": 0,
+        "complete": false,
+        "partial": false
+      }
+    },
+    "scoring_sheets_total": 20,
+    "scoring_sheets_filled": 0
+  },
+  "warnings": [
+    "【诚实性】数据门禁未通过：综合等级改为「数据不足」，不对标同业、不计算 KRI 健康度、不把空观测当改善。",
+    "关键字段完成度较低（1/141），评估结果可能不够准确",
+    "整体填写完成度较低，建议补充更多字段以获得可靠评估",
+    "【数据门禁】数据不足 · 不建议直接决策",
+    "当前置信度偏低，综合评分与整改优先级可能偏差较大，勿作为董事会终局依据。",
+    "优先补齐企业基本信息、财务、经营、合规、安全等高权重表。"
+  ]
+}

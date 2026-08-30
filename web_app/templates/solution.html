@@ -1,0 +1,299 @@
+{% extends "base.html" %}
+{% block title %}解决方案 - 企业风险动态评估系统{% endblock %}
+{% block header_title %}<i class="fas fa-lightbulb"></i> 风险解决方案报告{% endblock %}
+{% block header_actions %}
+<div class="no-print" id="solutionExport" style="display:none;gap:6px;">
+  <button class="btn btn-outline btn-sm" data-export="solution-docx"><i class="fas fa-file-word"></i> 导出 Word</button>
+  <button class="btn btn-outline btn-sm" onclick="window.print()"><i class="fas fa-print"></i> 打印</button>
+</div>
+{% endblock %}
+{% block content_class %}content-narrow{% endblock %}
+
+{% block content %}
+<div class="empty-state" id="emptyState">
+  <i class="fas fa-lightbulb"></i>
+  <p>暂无评估数据，请先完成评估或从侧栏选择评估档案</p>
+  <div class="empty-steps">
+    <div class="step"><span class="n">1</span><span>在「数据录入」填写或导入企业风险信息表</span></div>
+    <div class="step"><span class="n">2</span><span>完成评估后可在「评估报告」查看评分</span></div>
+    <div class="step"><span class="n">3</span><span>回到本页自动生成整改与行动方案</span></div>
+  </div>
+  <a href="{{ erm_base }}/data-entry" class="btn"><i class="fas fa-edit"></i> 前往数据录入</a>
+</div>
+
+<div id="loadingState" class="loading-inline" style="display:none;"><div class="spinner"></div><p>正在生成解决方案…</p></div>
+
+<div id="solutionBody" style="display:none;">
+  <nav class="solution-toc no-print" id="solutionToc">
+    <a href="#sec-priority">优先级</a>
+    <a href="#sec-dims">重点维度</a>
+    <a href="#sec-measures">整改措施</a>
+    <a href="#sec-actions">行动方案</a>
+    <a href="#sec-kpi">KPI</a>
+    <a href="#sec-roadmap">路线图</a>
+    <a href="#sec-deep">深度方案</a>
+    <a href="#sec-industry">行业路径</a>
+    <a href="#sec-bayes">贝叶斯</a>
+    <a href="#sec-loop">数据闭环</a>
+  </nav>
+
+  <div id="solutionBriefPanel"></div>
+  <div class="report-cover solution-cover">
+    <h1>企业风险解决方案报告</h1>
+    <div class="company-name" id="sCompanyName"></div>
+    <div class="meta">
+      <div id="sReportDate"></div>
+      <div id="sHighRiskSummary"></div>
+      <div>建议结合企业实际情况调整实施优先级 · ISO 31000</div>
+    </div>
+  </div>
+
+  <div class="report-section solution-section" id="sec-priority">
+    <h2>一、整改优先级概览</h2>
+    <div class="priority-stats" id="priorityStats"></div>
+    <div class="chart-row">
+      <div class="chart-box-sm"><canvas id="priorityChart"></canvas></div>
+      <div class="chart-box-sm"><canvas id="solutionDimChart"></canvas></div>
+    </div>
+  </div>
+
+  <div class="report-section solution-section" id="sec-dims">
+    <h2>二、需重点整改维度</h2>
+    <div id="solutionList"></div>
+  </div>
+
+  <div class="report-section solution-section" id="sec-measures">
+    <h2>三、整改措施与建议</h2>
+    <div id="solutionDetails"></div>
+  </div>
+
+  <div class="report-section solution-section" id="sec-actions">
+    <h2>四、可执行行动方案（Action Plans）</h2>
+    <p id="actionPlanIntro" class="muted-intro"></p>
+    <div id="actionPlanList"></div>
+  </div>
+
+  <div class="report-section solution-section" id="sec-kpi">
+    <h2>五、KPI 监控指标汇总</h2>
+    <table class="kpi-table">
+      <thead><tr><th>所属维度</th><th>指标</th><th>目标值</th><th>监控频率</th></tr></thead>
+      <tbody id="kpiTableBody"></tbody>
+    </table>
+  </div>
+
+  <div class="report-section solution-section" id="sec-roadmap">
+    <h2>六、实施路线图</h2>
+    <div id="implementationPhases"></div>
+  </div>
+
+  <div class="report-section solution-section" id="sec-deep">
+    <h2>七、深度解决方案（科学分析与根因导向）</h2>
+    <p class="muted-intro">基于 ISO 31000 应对策略、根因分析与行业最佳实践生成的结构化方案。</p>
+    <div id="deepSolutionList"></div>
+  </div>
+
+  <div class="report-section solution-section" id="sec-industry">
+    <h2>八、行业定制行动路径</h2>
+    <div id="industryPlaybookSolution"></div>
+  </div>
+
+  <div class="report-section solution-section" id="sec-bayes">
+    <h2>九、贝叶斯复评更新</h2>
+    <div id="bayesianSolution"></div>
+  </div>
+
+  <div class="report-section solution-section" id="sec-loop">
+    <h2>十、数据闭环状态</h2>
+    <div id="closedLoopSolution"></div>
+  </div>
+
+  <div class="footer"><p>建议每季度复评并更新本方案</p><p id="sFooterTime"></p></div>
+</div>
+<style>
+.muted-intro { font-size: 14px; color: var(--erm-text-muted, #64748b); margin-bottom: 12px; line-height: 1.6; }
+</style>
+{% endblock %}
+
+{% block scripts %}
+<script>
+let solutionCharts = {}, rawFormData = null;
+
+async function resolveAssessment() {
+  let result = ERM.getAssessment();
+  if (result) return result;
+  // fallback: load latest history record if present
+  try {
+    const records = await ERM.fetchHistory();
+    if (!records?.length) return null;
+    const full = await ERM.loadHistoryRecord(records[0].id);
+    if (full) {
+      // history API may wrap assessment payload
+      const assessment = full.assessment || full.result || full;
+      ERM.setAssessment(assessment);
+      return assessment;
+    }
+  } catch (e) { console.warn("history fallback failed", e); }
+  return null;
+}
+
+async function loadSolution() {
+  const result = await resolveAssessment();
+  if (!result) {
+    document.getElementById("emptyState").style.display = "block";
+    return;
+  }
+  rawFormData = result.all_raw_data || result.raw_data || result.form_data || {};
+  if (!rawFormData || !Object.keys(rawFormData).length) {
+    document.getElementById("emptyState").style.display = "block";
+    document.getElementById("emptyState").querySelector("p").textContent =
+      "所选档案缺少原始录入数据，请重新完成评估或选择其他档案";
+    return;
+  }
+  document.getElementById("emptyState").style.display = "none";
+  document.getElementById("loadingState").style.display = "block";
+
+  try {
+    const resp = await fetch("/api/solution", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(rawFormData),
+    });
+    const solution = await resp.json();
+    if (!resp.ok) throw new Error(solution.error || ("HTTP " + resp.status));
+    document.getElementById("loadingState").style.display = "none";
+    document.getElementById("solutionBody").style.display = "block";
+    document.getElementById("solutionExport").style.display = "flex";
+    await ERM.applyWorkflow(solution);
+    renderSolution(solution);
+    ERM.bindExportButtons(document.getElementById("solutionExport"), () => rawFormData);
+  } catch (e) {
+    document.getElementById("loadingState").style.display = "none";
+    document.getElementById("emptyState").style.display = "block";
+    document.getElementById("emptyState").querySelector("p").textContent = "加载失败：" + e.message;
+  }
+}
+
+function renderSolution(solution) {
+  document.getElementById("sCompanyName").textContent = solution.company_name;
+  document.getElementById("sReportDate").textContent = "报告日期：" + solution.report_date;
+  document.getElementById("sFooterTime").textContent = "生成时间：" + new Date().toLocaleString("zh-CN");
+  document.getElementById("sHighRiskSummary").textContent =
+    `评分 ${Number(solution.overall_score).toFixed(2)} · ${solution.overall_level} · 整改维度 ${solution.high_risk_count} 个 · 共 ${solution.total_measures || 0} 项措施`;
+  ERM.renderExecutiveBrief(document.getElementById("solutionBriefPanel"), solution.executive_brief || solution.analytics?.executive_brief);
+
+  const pc = solution.priority_counts || {};
+  document.getElementById("priorityStats").innerHTML = `
+    <div class="priority-stat prio-p0"><div class="num">${pc.P0 || 0}</div><div class="lbl">P0 立即</div></div>
+    <div class="priority-stat prio-p1"><div class="num">${pc.P1 || 0}</div><div class="lbl">P1 短期</div></div>
+    <div class="priority-stat prio-p2"><div class="num">${pc.P2 || 0}</div><div class="lbl">P2 中期</div></div>
+    <div class="priority-stat prio-other"><div class="num">${pc["其他"] || 0}</div><div class="lbl">其他</div></div>`;
+
+  const chartColors = ["#ef4444", "#ea580c", "#d97706", "#94a3b8"];
+  ERM.destroyCharts(solutionCharts);
+  solutionCharts.priority = new Chart(document.getElementById("priorityChart").getContext("2d"), {
+    type: "doughnut",
+    data: {
+      labels: ["P0", "P1", "P2", "其他"],
+      datasets: [{ data: [pc.P0 || 0, pc.P1 || 0, pc.P2 || 0, pc["其他"] || 0], backgroundColor: chartColors, borderWidth: 0 }],
+    },
+    options: {
+      responsive: true, maintainAspectRatio: false,
+      plugins: {
+        title: { display: true, text: "措施优先级分布", color: "#334155", font: { weight: "600" } },
+        legend: { position: "bottom", labels: { boxWidth: 10, color: "#64748b" } },
+      },
+    },
+  });
+
+  if (solution.solutions?.length) {
+    solutionCharts.dim = new Chart(document.getElementById("solutionDimChart").getContext("2d"), {
+      type: "bar",
+      data: {
+        labels: solution.solutions.map(s => s.dimension),
+        datasets: [{
+          label: "维度评分",
+          data: solution.solutions.map(s => s.score),
+          backgroundColor: solution.solutions.map(s => ERM.levelColor(s.level)),
+          borderRadius: 6,
+        }],
+      },
+      options: {
+        indexAxis: "y", responsive: true, maintainAspectRatio: false,
+        scales: {
+          x: { min: 0, max: 4, grid: { color: "#eef2f6" }, ticks: { color: "#94a3b8" } },
+          y: { grid: { display: false }, ticks: { color: "#64748b" } },
+        },
+        plugins: {
+          title: { display: true, text: "待整改维度评分", color: "#334155", font: { weight: "600" } },
+          legend: { display: false },
+        },
+      },
+    });
+  }
+
+  const list = document.getElementById("solutionList");
+  list.innerHTML = solution.solutions?.length ? "" : '<p class="muted-intro" style="padding:12px;background:#f8fafc;border-radius:8px;border:1px solid #e2e8f0;">无高风险维度，维持现有风控并定期复评。</p>';
+  (solution.solutions || []).forEach(sol => {
+    const div = document.createElement("div");
+    div.className = "solution-dim-row";
+    div.innerHTML = `<div><strong>${ERM.escapeHtml(sol.dimension)}</strong> — ${ERM.escapeHtml(sol.title)}</div>
+      <span class="badge ${ERM.levelBadge(sol.level)}">${sol.level} (${Number(sol.score).toFixed(2)})</span>`;
+    list.appendChild(div);
+  });
+
+  const details = document.getElementById("solutionDetails");
+  details.innerHTML = "";
+  (solution.solutions || []).forEach(sol => {
+    const block = document.createElement("div");
+    block.className = "solution-block";
+    let html = `<h3>${ERM.escapeHtml(sol.title)}</h3><p class="desc">${ERM.escapeHtml(sol.description)}</p>`;
+    [["immediate", "立即执行", "#ef4444"], ["short_term", "短期措施", "#ea580c"], ["medium_term", "中期规划", "#d97706"]].forEach(([k, lbl, col]) => {
+      if (sol[k]?.length) {
+        html += `<div style="margin-top:8px;"><strong style="font-size:13px;color:${col};">▎${lbl}</strong></div>`;
+        sol[k].forEach(item => {
+          const cls = String(item.priority).includes("P0") || item.priority === "高" ? "prio-high"
+            : String(item.priority).includes("P1") || item.priority === "紧急" ? "prio-urgent" : "prio-medium";
+          html += `<div class="solution-item"><div class="measure"><span class="priority-tag ${cls}">${ERM.escapeHtml(item.priority)}</span> ${ERM.escapeHtml(item.measure)}</div><div class="detail">${ERM.escapeHtml(item.detail)}</div></div>`;
+        });
+      }
+    });
+    block.innerHTML = html;
+    details.appendChild(block);
+  });
+
+  const kpiBody = document.getElementById("kpiTableBody");
+  const kpis = solution.all_kpis || [];
+  kpiBody.innerHTML = kpis.length ? "" : '<tr><td colspan="4" style="text-align:center;color:#94a3b8;">暂无 KPI</td></tr>';
+  kpis.forEach(kpi => {
+    const tr = document.createElement("tr");
+    tr.innerHTML = `<td>${ERM.escapeHtml(kpi.dimension)}</td><td>${ERM.escapeHtml(kpi.name)}</td><td>${ERM.escapeHtml(kpi.target)}</td><td>${ERM.escapeHtml(kpi.freq)}</td>`;
+    kpiBody.appendChild(tr);
+  });
+
+  const plans = solution.action_plans || {};
+  document.getElementById("actionPlanIntro").textContent =
+    plans.total_actions ? `共 ${plans.total_actions} 项结构化行动方案，P0 立即执行 ${plans.p0_count || 0} 项。含责任角色、时间节点、交付物与成功标准。` : "暂无结构化行动项。";
+  ERM.renderTrackableActionPlans(document.getElementById("actionPlanList"), plans, solution.company_name, async () => {
+    const snap = await fetch("/api/workflow?company=" + encodeURIComponent(solution.company_name)).then(r => r.json());
+    if (solution.closed_loop) {
+      solution.closed_loop.workflow = snap.completion;
+      const v = solution.closed_loop.remediation_verification || {};
+      v.actions_tracked = Object.assign({}, v.actions_tracked || {}, snap.completion, { source: "persisted" });
+      solution.closed_loop.remediation_verification = v;
+    }
+    ERM.renderClosedLoop(document.getElementById("closedLoopSolution"), solution.closed_loop || solution.analytics?.closed_loop);
+  });
+  ERM.renderImplementationPhases(document.getElementById("implementationPhases"), plans.implementation_phases);
+
+  const deepPkgs = solution.deep_solutions || solution.deep_analysis?.deep_solutions;
+  ERM.renderDeepSolutions(document.getElementById("deepSolutionList"), deepPkgs);
+  const pb = solution.deep_analysis?.industry_playbook || solution.industry_playbook;
+  ERM.renderIndustryPlaybook(document.getElementById("industryPlaybookSolution"), pb);
+  const bayes = solution.bayesian_update || solution.analytics?.bayesian_update;
+  ERM.renderBayesianUpdate(document.getElementById("bayesianSolution"), bayes);
+  ERM.renderClosedLoop(document.getElementById("closedLoopSolution"), solution.closed_loop || solution.analytics?.closed_loop);
+}
+
+loadSolution();
+</script>
+{% endblock %}

@@ -1,0 +1,10 @@
+{
+  "name": "企业风险动态评估系统",
+  "short_name": "ERM",
+  "description": "企业风险管理评估与告警",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#1a3a5c",
+  "theme_color": "#2d6a9f",
+  "icons": []
+}

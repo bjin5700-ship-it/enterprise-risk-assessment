@@ -1,0 +1,95 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>{% block title %}企业风险动态评估系统{% endblock %}</title>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.7/dist/chart.umd.min.js"></script>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Noto+Sans+SC:wght@400;500;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
+  <link rel="manifest" href="{{ url_for('static', filename='manifest.json') }}">
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/common.css') }}?v=oss0821e5">
+  {% block head_extra %}{% endblock %}
+</head>
+<body>
+  <div class="sidebar">
+    <div class="logo">
+      <div class="brand-mark">风</div>
+      <h1>企业风险动态评估系统</h1>
+      <p>Enterprise Risk Dynamic Assessment</p>
+      <span class="brand-tag">中金国际 · 哨兵体系</span>
+    </div>
+    <nav>
+      <a href="{{ erm_base }}/" class="{% if active_nav == 'dashboard' %}active{% endif %}"><i class="fas fa-chart-pie"></i> 仪表盘</a>
+      <a href="{{ erm_base }}/data-entry" class="{% if active_nav == 'data-entry' %}active{% endif %}" id="navDataEntry"><i class="fas fa-edit"></i> 数据录入</a>
+      <a href="{{ erm_base }}/report" class="{% if active_nav == 'report' %}active{% endif %}"><i class="fas fa-file-alt"></i> 评估报告</a>
+      <a href="{{ erm_base }}/solution" class="{% if active_nav == 'solution' %}active{% endif %}"><i class="fas fa-lightbulb"></i> 解决方案</a>
+    </nav>
+    <div class="history-panel no-print">
+      <label><i class="fas fa-archive"></i> 评估档案</label>
+      <select id="globalHistorySelect"><option value="">— 加载历史评估 —</option></select>
+      <button type="button" class="btn-sidebar" id="btnDownloadTemplate"><i class="fas fa-download"></i> 下载空白模板</button>
+    </div>
+  </div>
+
+  <div class="main">
+    <div class="header">
+      <h2>{% block header_title %}{% endblock %}</h2>
+      <div class="header-actions">
+        {% block header_actions %}{% endblock %}
+        <div class="auth-chip no-print" id="authChip">
+          {% if erm_user %}
+          <span class="auth-user" title="{{ erm_user.role_label }}">{{ erm_user.username }} · {{ erm_user.role_label }}</span>
+          <a class="btn-link-sm" href="{{ erm_base }}/api/auth/logout">退出</a>
+          {% else %}
+          <a class="btn btn-outline btn-sm" href="{{ erm_base }}/login">登录</a>
+          {% endif %}
+        </div>
+        <div class="notify-wrap no-print" id="notifyWrap">
+          <button type="button" class="btn-icon notify-btn" id="btnNotify" title="风险告警通知">
+            <i class="fas fa-bell"></i>
+            <span class="notify-badge" id="notifyBadge" style="display:none;">0</span>
+          </button>
+          <div class="notify-dropdown" id="notifyDropdown" style="display:none;">
+            <div class="notify-dropdown-head">
+              <strong>风险告警</strong>
+              <button type="button" class="btn-link-sm" id="btnNotifyReadAll">全部已读</button>
+            </div>
+            <ul class="notify-list" id="notifyList"></ul>
+          </div>
+        </div>
+        <div class="time" id="currentTime"></div>
+      </div>
+    </div>
+    <div class="content {% block content_class %}{% endblock %}">
+      {% block content %}{% endblock %}
+    </div>
+  </div>
+
+  <script>window.ERM_BASE = "{{ erm_base }}";</script>
+  <script src="{{ url_for('static', filename='js/common.js') }}?v=oss0821e5"></script>
+  {% block scripts %}{% endblock %}
+  <script>
+    (function () {
+      const ERM = window.ERM;
+      if (!ERM) {
+        console.error("ERM common.js failed to attach window.ERM");
+        return;
+      }
+      ERM.startClock("currentTime");
+      ERM.initNotificationCenter();
+      ERM.registerServiceWorker();
+      ERM.refreshAuthUi();
+      ERM.initHistorySidebar("globalHistorySelect", (assessment) => {
+        if (location.pathname === "/" || location.pathname === "") location.reload();
+        else if (location.pathname.includes("report") || location.pathname.includes("solution")) location.reload();
+      });
+      document.getElementById("btnDownloadTemplate")?.addEventListener("click", () => {
+        window.location.href = (window.ermUrl ? window.ermUrl("/api/template/download") : ((window.ERM_BASE || "") + "/api/template/download"));
+      });
+    })();
+  </script>
+</body>
+</html>

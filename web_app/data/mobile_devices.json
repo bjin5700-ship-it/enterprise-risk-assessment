@@ -1,0 +1,72 @@
+[
+  {
+    "id": "fe826a5a",
+    "token": "web-rw7wkjy7",
+    "platform": "web",
+    "device_name": "桌面浏览器",
+    "company_filter": "",
+    "created_at": "2026-08-05T07:50:30.703636",
+    "last_seen_at": "2026-08-05T07:56:12.013889",
+    "active": true
+  },
+  {
+    "id": "29cf2a4d",
+    "token": "web-3fq6xxqw",
+    "platform": "web",
+    "device_name": "桌面浏览器",
+    "company_filter": "",
+    "created_at": "2026-08-01T17:16:00.264236",
+    "last_seen_at": "2026-08-06T10:03:45.656699",
+    "active": true
+  },
+  {
+    "id": "8b1d2c04",
+    "token": "web-gjustben",
+    "platform": "web",
+    "device_name": "桌面浏览器",
+    "company_filter": "",
+    "created_at": "2026-07-09T10:55:14.155729",
+    "last_seen_at": "2026-07-09T10:55:14.155729",
+    "active": true
+  },
+  {
+    "id": "d1fc93df",
+    "token": "audit-sw-device",
+    "platform": "web",
+    "device_name": "audit",
+    "company_filter": "",
+    "created_at": "2026-07-09T10:55:00.764595",
+    "last_seen_at": "2026-07-09T10:55:00.764595",
+    "active": true
+  },
+  {
+    "id": "ce312c5a",
+    "token": "web-nt5qfyc4",
+    "platform": "web",
+    "device_name": "桌面浏览器",
+    "company_filter": "",
+    "created_at": "2026-07-09T10:52:55.234466",
+    "last_seen_at": "2026-07-09T12:59:42.183577",
+    "active": true
+  },
+  {
+    "id": "88d6f6e5",
+    "token": "audit-device",
+    "platform": "web",
+    "device_name": "audit",
+    "company_filter": "",
+    "created_at": "2026-07-09T10:50:12.766131",
+    "last_seen_at": "2026-08-05T07:52:45.305765",
+    "active": true
+  },
+  {
+    "id": "364f2f4c",
+    "token": "test-token-123",
+    "platform": "fcm",
+    "device_name": "test",
+    "company_filter": "",
+    "created_at": "2026-07-09T10:36:11.838293",
+    "last_seen_at": "2026-07-09T10:36:11.838293",
+    "active": true
+  }
+]

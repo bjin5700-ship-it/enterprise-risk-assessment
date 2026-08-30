@@ -1,0 +1,63 @@
+{
+  "global_enabled": true,
+  "max_parallel_jobs": 2,
+  "jobs": [
+    {
+      "id": "default",
+      "enabled": true,
+      "interval_minutes": 5,
+      "source_type": "csv_file",
+      "source_path": "D:\\_Work\\02_Documents\\信息搜集表格\\web_app\\data\\erp_sample.csv",
+      "source_url": "",
+      "oauth_provider_id": "",
+      "api_headers": {},
+      "company_name": "闭环测试企业",
+      "auto_assess": true,
+      "auto_notify": false,
+      "auto_save_history": false,
+      "last_run_at": "2026-08-14T21:14:42.646246",
+      "next_run_at": "2026-08-14T21:19:42.646246",
+      "last_status": "error",
+      "last_message": "CSV 文件不存在: D:\\_Work\\02_Documents\\信息搜集表格\\web_app\\data\\erp_sample.csv",
+      "last_fields_updated": 4
+    },
+    {
+      "id": "5e622cbe",
+      "enabled": true,
+      "interval_minutes": 5,
+      "source_type": "csv_file",
+      "source_path": "D:\\_Work\\02_Documents\\信息搜集表格\\web_app\\data\\erp_sample.csv",
+      "source_url": "",
+      "oauth_provider_id": "",
+      "api_headers": {},
+      "company_name": "企业A",
+      "auto_assess": true,
+      "auto_notify": true,
+      "auto_save_history": false,
+      "last_run_at": "2026-08-14T21:15:42.647714",
+      "next_run_at": "2026-08-14T21:20:42.647714",
+      "last_status": "error",
+      "last_message": "CSV 文件不存在: D:\\_Work\\02_Documents\\信息搜集表格\\web_app\\data\\erp_sample.csv",
+      "last_fields_updated": 4
+    },
+    {
+      "id": "235f5c9d",
+      "enabled": true,
+      "interval_minutes": 5,
+      "source_type": "csv_file",
+      "source_path": "D:\\_Work\\02_Documents\\信息搜集表格\\web_app\\data\\erp_sample.csv",
+      "source_url": "",
+      "oauth_provider_id": "",
+      "api_headers": {},
+      "company_name": "企业B",
+      "auto_assess": true,
+      "auto_notify": true,
+      "auto_save_history": false,
+      "last_run_at": "2026-08-14T21:11:42.644196",
+      "next_run_at": "2026-08-14T21:16:42.644196",
+      "last_status": "error",
+      "last_message": "CSV 文件不存在: D:\\_Work\\02_Documents\\信息搜集表格\\web_app\\data\\erp_sample.csv",
+      "last_fields_updated": 4
+    }
+  ]
+}

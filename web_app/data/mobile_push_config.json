@@ -1,0 +1,6 @@
+{
+  "fcm_enabled": false,
+  "fcm_server_key": "",
+  "custom_push_url": "",
+  "web_push_poll_seconds": 90
+}
