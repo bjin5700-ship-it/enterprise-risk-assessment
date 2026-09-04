@@ -16,7 +16,11 @@
 <div class="empty-state" id="emptyState">
   <i class="fas fa-file-alt"></i>
   <p>暂无评估数据，请先录入企业风险信息，或在左侧加载带「演示」标记的档案</p>
-  <a href="{{ erm_base }}/data-entry" class="btn"><i class="fas fa-edit"></i> 前往数据录入</a>
+  <div style="display:flex;gap:10px;justify-content:center;flex-wrap:wrap;margin-top:12px;">
+    <button type="button" class="btn" id="btnLoadDemoMfg"><i class="fas fa-industry"></i> 加载制造业演示（18章完整报告）</button>
+    <button type="button" class="btn btn-outline" id="btnLoadDemoChem" style="background:#fff;color:#0d9488;border:1px solid #0d9488;"><i class="fas fa-flask"></i> 加载化工演示</button>
+    <a href="{{ erm_base }}/data-entry" class="btn btn-outline" style="background:#fff;color:#1e3a5f;border:1px solid #1e3a5f;"><i class="fas fa-edit"></i> 前往数据录入</a>
+  </div>
 </div>
 
 <div id="reportBody" style="display:none;" hidden aria-hidden="true">
@@ -185,27 +189,31 @@
 let reportCharts = {}, currentResult = null, reportExtraCharts = {};
 
 function loadReport() {
-  currentResult = ERM.getAssessment();
-  if (!currentResult) {
-    document.getElementById("emptyState").style.display = "block";
+  ERM.resolveAssessment().then((result) => {
+    currentResult = result;
+    if (!currentResult) {
+      document.getElementById("emptyState").style.display = "block";
+      const body = document.getElementById("reportBody");
+      body.style.display = "none";
+      body.hidden = true;
+      body.setAttribute("aria-hidden", "true");
+      document.getElementById("exportActions").style.display = "none";
+      return;
+    }
+    document.getElementById("emptyState").style.display = "none";
     const body = document.getElementById("reportBody");
-    body.style.display = "none";
-    body.hidden = true;
-    body.setAttribute("aria-hidden", "true");
-    document.getElementById("exportActions").style.display = "none";
-    return;
-  }
-  document.getElementById("emptyState").style.display = "none";
-  const body = document.getElementById("reportBody");
-  body.style.display = "block";
-  body.hidden = false;
-  body.setAttribute("aria-hidden", "false");
-  document.getElementById("exportActions").style.display = "flex";
-  window.ERM_COMPANY = currentResult.company_name;
-  ERM.applyWorkflow(currentResult).then(() => {
-    renderReport(currentResult);
-    ERM.bindExportButtons(document.getElementById("exportActions"), () => currentResult.all_raw_data || {});
-    ERM.bindWorkflowClicks(currentResult.company_name, () => loadReport());
+    body.style.display = "block";
+    body.hidden = false;
+    body.setAttribute("aria-hidden", "false");
+    document.getElementById("exportActions").style.display = "flex";
+    window.ERM_COMPANY = currentResult.company_name;
+    ERM.applyWorkflow(currentResult).then(() => {
+      renderReport(currentResult);
+      ERM.bindExportButtons(document.getElementById("exportActions"), () => currentResult.all_raw_data || {});
+      ERM.bindWorkflowClicks(currentResult.company_name, () => loadReport());
+    });
+  }).catch((e) => {
+    ERM.toast("加载报告失败：" + e.message, "error");
   });
 }
 
@@ -360,6 +368,13 @@ function renderReport(result) {
     reportExtraCharts.tld = ERM.renderThreeLines(document.getElementById("rTldChart"), deep.three_lines_of_defense, reportExtraCharts.tld);
   }
 }
+
+document.getElementById("btnLoadDemoMfg")?.addEventListener("click", async () => {
+  try { await ERM.loadDemoArchive("demo-mfg"); loadReport(); } catch (e) { ERM.toast(e.message, "error"); }
+});
+document.getElementById("btnLoadDemoChem")?.addEventListener("click", async () => {
+  try { await ERM.loadDemoArchive("demo-chem"); loadReport(); } catch (e) { ERM.toast(e.message, "error"); }
+});
 
 loadReport();
 </script>

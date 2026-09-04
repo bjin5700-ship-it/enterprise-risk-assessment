@@ -22,6 +22,7 @@
 const ERM = {
   STORAGE_KEY: "erm_form_draft",
   RESULT_KEY: "assessmentResult",
+  RESULT_ID_KEY: "assessmentResultId",
   HISTORY_CACHE_KEY: "erm_history_cache",
 
   LEVEL_COLORS: {
@@ -50,8 +51,29 @@ const ERM = {
     } catch { return null; }
   },
 
-  setAssessment(result) {
-    sessionStorage.setItem(this.RESULT_KEY, JSON.stringify(result));
+  getAssessmentId() {
+    return sessionStorage.getItem(this.RESULT_ID_KEY) || "";
+  },
+
+  setAssessment(result, recordId) {
+    try {
+      sessionStorage.setItem(this.RESULT_KEY, JSON.stringify(result));
+      if (recordId) sessionStorage.setItem(this.RESULT_ID_KEY, recordId);
+      else sessionStorage.removeItem(this.RESULT_ID_KEY);
+    } catch (e) {
+      console.warn("assessment too large for sessionStorage, storing id only", e);
+      sessionStorage.removeItem(this.RESULT_KEY);
+      if (recordId) sessionStorage.setItem(this.RESULT_ID_KEY, recordId);
+    }
+  },
+
+  async resolveAssessment() {
+    const cached = this.getAssessment();
+    if (cached) return cached;
+    const rid = this.getAssessmentId();
+    if (!rid) return null;
+    const record = await this.loadHistoryRecord(rid);
+    return record?.assessment || null;
   },
 
   getDraft() {
@@ -333,11 +355,32 @@ const ERM = {
   },
 
   async fetchHistory() {
-    const resp = await fetch("/api/history");
-    if (!resp.ok) return [];
-    const json = await resp.json();
-    localStorage.setItem(this.HISTORY_CACHE_KEY, JSON.stringify(json.records || []));
-    return json.records || [];
+    try {
+      const resp = await fetch("/api/history", { credentials: "same-origin" });
+      if (!resp.ok) throw new Error(`history ${resp.status}`);
+      const json = await resp.json();
+      const records = json.records || [];
+      localStorage.setItem(this.HISTORY_CACHE_KEY, JSON.stringify(records));
+      return records;
+    } catch (e) {
+      console.warn("fetchHistory failed, using cache", e);
+      try {
+        const cached = JSON.parse(localStorage.getItem(this.HISTORY_CACHE_KEY) || "[]");
+        return Array.isArray(cached) ? cached : [];
+      } catch {
+        return [];
+      }
+    }
+  },
+
+  async loadDemoArchive(id = "demo-mfg") {
+    const record = await this.loadHistoryRecord(id);
+    if (record?.assessment) {
+      this.setAssessment(record.assessment, id);
+      this.toast(`已加载演示档案：${record.company_name}`, "success");
+      return record.assessment;
+    }
+    throw new Error("演示档案不可用");
   },
 
   async saveToHistory(assessment, note = "") {
@@ -1344,9 +1387,9 @@ const ERM = {
   initHistorySidebar(selectId, onLoad) {
     const sel = document.getElementById(selectId);
     if (!sel) return;
-    this.fetchHistory().then(records => {
+    const populate = (records) => {
       sel.innerHTML = '<option value="">— 评估档案 —</option>';
-      records.forEach(r => {
+      (records || []).forEach(r => {
         const opt = document.createElement("option");
         opt.value = r.id;
         const isDemo = (r.company_name || "").startsWith("DEMO-") || (r.note || "").includes("演示");
@@ -1354,13 +1397,18 @@ const ERM = {
         opt.textContent = `${demoMark}${r.company_name} · ${r.overall_score?.toFixed(2) ?? "--"} · ${r.assessed_at?.slice(0, 10) || ""}`;
         sel.appendChild(opt);
       });
-    });
+    };
+    this.fetchHistory().then(populate).catch(() => populate([]));
+    const demoParam = new URLSearchParams(location.search).get("demo");
+    if (demoParam) {
+      this.loadDemoArchive(demoParam).then((a) => { if (onLoad) onLoad(a); }).catch(() => {});
+    }
     sel.onchange = async () => {
       if (!sel.value) return;
       try {
         const record = await this.loadHistoryRecord(sel.value);
         if (record.assessment) {
-          this.setAssessment(record.assessment);
+          this.setAssessment(record.assessment, sel.value);
           if (onLoad) onLoad(record.assessment);
           this.toast(`已加载：${record.company_name}`, "success");
         }

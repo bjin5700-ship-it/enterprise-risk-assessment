@@ -34,6 +34,12 @@ def provider_status() -> dict:
     http = bool((os.environ.get("ERM_EXTERNAL_RISK_URL") or "").strip())
     if forced in ("none", "off", "disabled"):
         return {"provider": "none", "connected": False, "note": "已关闭外部源"}
+    if forced in ("demo", "fixture", "demo_fixture"):
+        return {
+            "provider": "demo_fixture",
+            "connected": True,
+            "note": "内置司法/信用证据库（中金国际演示；配置 TIANYANCHA_TOKEN 可切换商业源）",
+        }
     if forced in ("tianyancha", "tyc") and tyc:
         return {"provider": "tianyancha", "connected": True, "note": "天眼查商业 API"}
     if forced in ("qichacha", "qcc") and qcc:
@@ -62,7 +68,9 @@ def lookup_external_risk(uscc: str = "", company_name: str = "") -> dict:
 
     if status["connected"]:
         try:
-            if status["provider"] == "tianyancha":
+            if status["provider"] == "demo_fixture":
+                records = demo_feed_records(code, name)
+            elif status["provider"] == "tianyancha":
                 records = _fetch_tianyancha(code or name)
             elif status["provider"] == "qichacha":
                 records = _fetch_qichacha(code or name)
@@ -173,6 +181,40 @@ def _fixture_records(uscc: str, name: str) -> List[dict]:
                  "https://www.gsxt.gov.cn/", "medium", None),
         ]
     return []
+
+
+def demo_feed_records(uscc: str = "", company_name: str = "") -> List[dict]:
+    """内置证据库：DEMO 企业完整样例；其他企业返回轻量公开信息结构（演示）。"""
+    code = normalize_credit_code(uscc)
+    name = str(company_name or "").strip()
+    rows = _fixture_records(code, name)
+    if rows:
+        return rows
+    if not code and not name:
+        return []
+    label = name or code
+    return [
+        _rec(
+            "lawsuit", "合同纠纷（一般商事）", "2025-03-12",
+            f"{label} 存在 1 起在审合同纠纷，标的约 120 万元（演示结构化证据，非实时工商接口）。",
+            "https://wenshu.court.gov.cn/", "medium", 120,
+        ),
+        _rec(
+            "penalty", "安全生产例行检查整改", "2024-11-08",
+            f"{label} 曾收到应急管理部门限期整改通知，未罚款（演示）。",
+            "https://www.mem.gov.cn/", "low", None,
+        ),
+    ]
+
+
+def demo_feed_payload(uscc: str = "", company_name: str = "") -> dict:
+    records = demo_feed_records(uscc, company_name)
+    return {
+        "records": records,
+        "suggested_fields": records_to_suggestions(records),
+        "provider": "demo_fixture",
+        "note": "ERM 内置司法/信用证据适配层",
+    }
 
 
 def _rec(category: str, title: str, date: str, summary: str, url: str, severity: str, amount_wan: Optional[float]) -> dict:

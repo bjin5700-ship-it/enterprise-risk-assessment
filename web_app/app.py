@@ -567,8 +567,15 @@ def add_history_record(assessment: dict, note: str = "") -> dict:
 
 
 @app.route("/ping")
+@app.route("/health")
+@app.route("/api/health")
 def ping():
-    return jsonify({"ok": True, "service": "enterprise-risk-assessment"})
+    return jsonify({
+        "ok": True,
+        "status": "healthy",
+        "service": "enterprise-risk-assessment",
+        "version": "2.0.0-intl",
+    })
 
 
 @app.route("/api/engines")
@@ -641,6 +648,15 @@ def api_external_risk():
         return jsonify(lookup_external_risk(uscc, name))
     except Exception as exc:
         return jsonify({"error": str(exc), "connected": False, "records": [], "suggested_fields": []}), 500
+
+
+@app.route("/api/external-risk/demo-feed", methods=["GET"])
+def api_external_risk_demo_feed():
+    """HTTP 适配层：供 ERM_EXTERNAL_RISK_URL 指向的内置证据源。"""
+    from data_external_risk import demo_feed_payload
+    uscc = request.args.get("uscc") or request.args.get("code") or ""
+    name = request.args.get("company_name") or request.args.get("name") or request.args.get("keyword") or ""
+    return jsonify(demo_feed_payload(uscc, name))
 
 
 def _safe_next(raw: str) -> str:
@@ -966,8 +982,16 @@ def api_solution():
 
 @app.route("/api/history", methods=["GET"])
 def api_history_list():
-    from erm_auth import current_user, filter_history
-    records = filter_history(load_history(), current_user())
+    from erm_auth import current_user, filter_history, is_demo_record
+    all_records = load_history()
+    records = filter_history(all_records, current_user())
+    # 演示档案始终置顶，便于公网审阅与国际方法论展示
+    demos = [r for r in all_records if is_demo_record(r)]
+    seen = {str(r.get("id")) for r in records}
+    for d in demos:
+        if str(d.get("id")) not in seen:
+            records.insert(0, d)
+            seen.add(str(d.get("id")))
     summary = [{
         "id": r["id"],
         "company_name": r.get("company_name"),

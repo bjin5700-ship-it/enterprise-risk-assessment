@@ -167,6 +167,10 @@ def latest_assessment() -> dict[str, Any]:
     except Exception as exc:  # noqa: BLE001
         raise HTTPException(status_code=500, detail=f"latest_unreadable: {exc}") from exc
     return {"ok": True, "assessment": data}
+
+
+@app.get("/health")
+def health() -> dict[str, Any]:
     return {
         "status": "healthy",
         "service": "assessment-bridge",
