@@ -31,6 +31,7 @@
     <a href="#sec-actions">行动方案</a>
     <a href="#sec-kpi">KPI</a>
     <a href="#sec-roadmap">路线图</a>
+    <a href="#sec-program">国际方案包</a>
     <a href="#sec-deep">深度方案</a>
     <a href="#sec-industry">行业路径</a>
     <a href="#sec-bayes">贝叶斯</a>
@@ -84,6 +85,12 @@
   <div class="report-section solution-section" id="sec-roadmap">
     <h2>六、实施路线图</h2>
     <div id="implementationPhases"></div>
+  </div>
+
+  <div class="report-section solution-section" id="sec-program">
+    <h2>国际级解决方案包（4T · 90 天路线图）</h2>
+    <p class="muted-intro">ISO 31000 应对策略 + 董事会决议要点，与深度整改方案联动。</p>
+    <div id="solutionProgramPanel"></div>
   </div>
 
   <div class="report-section solution-section" id="sec-deep">
@@ -287,6 +294,7 @@ function renderSolution(solution) {
 
   const deepPkgs = solution.deep_solutions || solution.deep_analysis?.deep_solutions;
   ERM.renderDeepSolutions(document.getElementById("deepSolutionList"), deepPkgs);
+  ERM.renderSolutionProgram(document.getElementById("solutionProgramPanel"), solution.solution_program);
   const pb = solution.deep_analysis?.industry_playbook || solution.industry_playbook;
   ERM.renderIndustryPlaybook(document.getElementById("industryPlaybookSolution"), pb);
   const bayes = solution.bayesian_update || solution.analytics?.bayesian_update;

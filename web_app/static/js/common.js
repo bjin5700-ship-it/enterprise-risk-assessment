@@ -672,6 +672,26 @@ const ERM = {
     return `<div class="wf-ops">${treat} ${close}</div>`;
   },
 
+  renderSolutionProgram(container, program) {
+    if (!container || !program) return;
+    const portfolio = program.treatment_portfolio || [];
+    const roadmap = program.roadmap_90d || [];
+    const board = (program.board_asks || []).map(a => `<li>${this.escapeHtml(a)}</li>`).join("");
+    const cards = portfolio.map(p => `
+      <div class="action-card">
+        <strong>${this.escapeHtml(p.dimension)}</strong> · ${p.score} · ${this.escapeHtml(p.level)}
+        <span class="action-meta">${this.escapeHtml(p.treatment_strategy || "")}</span>
+        <ul>${(p.measures || []).map(m => `<li>${this.escapeHtml(m.phase)}：${this.escapeHtml(m.measure)}（${this.escapeHtml(m.owner)}）</li>`).join("")}</ul>
+      </div>`).join("");
+    const road = roadmap.slice(0, 12).map(r => `
+      <tr><td>${this.escapeHtml(r.day_window)}</td><td>${this.escapeHtml(r.dimension)}</td><td>${this.escapeHtml(r.action)}</td><td>${this.escapeHtml(r.owner)}</td></tr>`).join("");
+    container.innerHTML = `
+      <p class="gap-summary">${this.escapeHtml(program.executive_summary || "")}</p>
+      ${board ? `<p><strong>董事会待决：</strong><ul>${board}</ul></p>` : ""}
+      ${cards || "<p style='color:#888;'>暂无高优先级维度。</p>"}
+      ${road ? `<table class="dim-table"><thead><tr><th>窗口</th><th>维度</th><th>行动</th><th>负责人</th></tr></thead><tbody>${road}</tbody></table>` : ""}`;
+  },
+
   renderDeepSolutions(container, packages) {
     if (!container) return;
     if (!packages?.length) {

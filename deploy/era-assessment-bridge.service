@@ -9,6 +9,7 @@ WorkingDirectory=/opt/enterprise-risk-assessment
 Environment=ASSESSMENT_ROOT=/opt/enterprise-risk-assessment
 Environment=REPORT_OUTPUT_DIR=/opt/era-backups/reports
 Environment=PYTHONPATH=/opt/enterprise-risk-assessment
+EnvironmentFile=-/opt/enterprise-risk-assessment/web_app/.env
 ExecStart=/opt/enterprise-risk-assessment/.venv/bin/python -m uvicorn era_bridge_api:app --host 127.0.0.1 --port 18088
 Restart=always
 RestartSec=3

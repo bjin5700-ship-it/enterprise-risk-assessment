@@ -45,6 +45,7 @@ SENSITIVE_RULES = (
 
 PUBLIC_GET_EXACT = frozenset({
     "/", "/report", "/login",
+    "/ping", "/health", "/api/health",
     "/api/engines", "/api/auth/me", "/api/validate/uscc",
     "/api/notifications",
     "/api/integrations/oauth/callback",
@@ -144,6 +145,10 @@ def jwt_secret() -> str:
     )
 
 
+def _query_token_allowed() -> bool:
+    return (os.environ.get("ERM_ALLOW_QUERY_TOKEN") or "").strip().lower() in ("1", "true", "yes")
+
+
 def _provided_token() -> str:
     hdr = (request.headers.get("X-ERM-Token") or "").strip()
     if hdr:
@@ -151,9 +156,10 @@ def _provided_token() -> str:
     auth = (request.headers.get("Authorization") or "").strip()
     if auth.lower().startswith("bearer "):
         return auth[7:].strip()
-    q = (request.args.get("token") or "").strip()
-    if q:
-        return q
+    if _query_token_allowed():
+        q = (request.args.get("token") or "").strip()
+        if q:
+            return q
     if request.is_json:
         body = request.get_json(silent=True) or {}
         t = str(body.get("admin_token") or "").strip()

@@ -8,6 +8,7 @@ Mounts `/opt/enterprise-risk-assessment` (or ASSESSMENT_ROOT) and exposes:
 
 from __future__ import annotations
 
+import hmac
 import json
 import os
 import sys
@@ -16,22 +17,43 @@ from datetime import datetime
 from pathlib import Path
 from typing import Any
 
-from fastapi import FastAPI, HTTPException
-from fastapi.responses import FileResponse
-from pydantic import BaseModel, Field
+from fastapi import FastAPI, HTTPException, Request
+from fastapi.responses import FileResponse, JSONResponse
+from pydantic import BaseModel, Field, field_validator
 
 ASSESSMENT_ROOT = Path(os.getenv("ASSESSMENT_ROOT", "/opt/enterprise-risk-assessment"))
 REPORT_DIR = Path(os.getenv("REPORT_OUTPUT_DIR", "/opt/era-backups/reports"))
+BRIDGE_TOKEN = (os.getenv("ERA_BRIDGE_TOKEN") or os.getenv("ERM_ADMIN_TOKEN") or "").strip()
 sys.path.insert(0, str(ASSESSMENT_ROOT))
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 
 from assess_profile import assess_from_profile, result_to_chinese_dict  # noqa: E402
 
-app = FastAPI(title="ERA Assessment Bridge", version="0.1.0")
+app = FastAPI(title="ERA Assessment Bridge", version="0.2.0")
 REPORT_DIR.mkdir(parents=True, exist_ok=True)
 
 # file_id -> absolute path
 _FILE_INDEX: dict[str, str] = {}
+
+
+def _bridge_auth_ok(request: Request) -> bool:
+    if not BRIDGE_TOKEN:
+        return os.environ.get("ERM_ENV", "").lower() not in ("production", "prod")
+    got = (request.headers.get("X-ERA-Token") or request.headers.get("X-ERM-Token") or "").strip()
+    auth = (request.headers.get("Authorization") or "").strip()
+    if auth.lower().startswith("bearer "):
+        got = got or auth[7:].strip()
+    return bool(got and hmac.compare_digest(got, BRIDGE_TOKEN))
+
+
+@app.middleware("http")
+async def require_bridge_token(request: Request, call_next):
+    path = request.url.path or ""
+    if path in ("/health", "/openapi.json", "/docs", "/redoc"):
+        return await call_next(request)
+    if not _bridge_auth_ok(request):
+        return JSONResponse(status_code=401, content={"detail": "valid X-ERA-Token required"})
+    return await call_next(request)
 
 
 class AssessmentRequest(BaseModel):
@@ -49,6 +71,23 @@ class AssessmentRequest(BaseModel):
     )
     formats: list[str] = Field(default_factory=lambda: ["html", "docx"])
     sheet_overrides: dict[str, dict[str, Any]] | None = None
+
+    @field_validator("excel_path")
+    @classmethod
+    def _excel_under_root(cls, v: str | None) -> str | None:
+        if not v:
+            return v
+        raw = Path(v)
+        if raw.is_absolute():
+            resolved = raw.resolve()
+        else:
+            resolved = (ASSESSMENT_ROOT / raw).resolve()
+        root = ASSESSMENT_ROOT.resolve()
+        if root not in resolved.parents and resolved != root:
+            raise ValueError("excel_path must stay under ASSESSMENT_ROOT")
+        if resolved.suffix.lower() not in (".xlsx", ".xls"):
+            raise ValueError("excel_path must be an Excel workbook")
+        return str(resolved)
 
 
 def _safe_name(name: str) -> str:
@@ -91,8 +130,6 @@ def _run_engine(payload: dict[str, Any]):
     excel = payload.get("excel_path")
     if excel:
         path = Path(excel)
-        if not path.is_absolute():
-            path = ASSESSMENT_ROOT / path
         if not path.exists():
             raise HTTPException(status_code=400, detail=f"excel_not_found: {path}")
         from risk_engine import run_assessment
@@ -175,6 +212,7 @@ def health() -> dict[str, Any]:
         "status": "healthy",
         "service": "assessment-bridge",
         "assessment_root": str(ASSESSMENT_ROOT),
+        "auth_required": bool(BRIDGE_TOKEN),
     }
 
 
@@ -203,15 +241,16 @@ def run_assessment_api(body: AssessmentRequest) -> dict[str, Any]:
 
 @app.get("/api/v1/assessment/files/{file_id}")
 def download_file(file_id: str):
+    if not file_id or len(file_id) > 64 or not all(c in "0123456789abcdef" for c in file_id.lower()):
+        raise HTTPException(status_code=400, detail="invalid_file_id")
     path = _lookup(file_id)
     if not path or not Path(path).exists():
-        candidate = REPORT_DIR / file_id
-        if candidate.exists():
-            path = str(candidate)
-        else:
-            raise HTTPException(status_code=404, detail="file_not_found")
+        raise HTTPException(status_code=404, detail="file_not_found")
+    resolved = Path(path).resolve()
+    if REPORT_DIR.resolve() not in resolved.parents:
+        raise HTTPException(status_code=403, detail="file_forbidden")
     return FileResponse(
-        path,
-        filename=Path(path).name,
+        str(resolved),
+        filename=resolved.name,
         media_type="application/octet-stream",
     )

@@ -26,17 +26,11 @@ upsert_env ERM_EXTERNAL_RISK_URL "http://127.0.0.1:8091/api/external-risk/demo-f
 upsert_env ERM_AUTH_MODE on
 chmod 600 "$ENV"
 
-echo "[2/6] RBAC users (assessor / approver / director)"
-cat > "$USERS" <<'JSON'
-{
-  "users": [
-    {"username": "红旗", "password": "123456", "role": "admin"},
-    {"username": "评估员", "password": "assessor123", "role": "assessor"},
-    {"username": "审批人", "password": "approver123", "role": "approver"},
-    {"username": "董事", "password": "director123", "role": "director"}
-  ]
-}
-JSON
+echo "[2/6] RBAC users (password_hash only — set passwords via env ERM_ADMIN_PASSWORD / ERM_USERS)"
+if [ ! -f "$USERS" ]; then
+  "$ROOT/.venv/bin/python" "$ROOT/scripts/migrate_users_to_hashes.py" 2>/dev/null || true
+fi
+"$ROOT/.venv/bin/python" "$ROOT/scripts/migrate_users_to_hashes.py"
 
 echo "[3/6] Restart ERM"
 systemctl restart erm-assessment.service

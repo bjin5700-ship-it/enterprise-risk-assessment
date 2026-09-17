@@ -380,6 +380,18 @@ def assessment_to_dict(result: AssessmentResult, stats: dict = None, warnings: L
     payload["analytics"] = enrich_assessment_full(
         result, stats, basic, payload.get("assessed_at"), prior_assessment=prior, action_plans=plans,
     )
+    try:
+        from risk_solution_program import build_solution_program
+
+        deep = (payload.get("analytics") or {}).get("deep_analysis") or {}
+        payload["solution_program"] = build_solution_program(
+            result,
+            action_plans=plans,
+            deep_solutions=deep.get("deep_solutions") or payload.get("deep_solutions"),
+            external_evidence=(payload.get("analytics") or {}).get("external_evidence"),
+        )
+    except Exception:
+        payload["solution_program"] = None
     if payload["analytics"] and payload["analytics"].get("deep_analysis"):
         payload["deep_analysis"] = payload["analytics"]["deep_analysis"]
         payload["deep_solutions"] = payload["analytics"]["deep_analysis"].get("deep_solutions", [])
@@ -446,6 +458,7 @@ def _publish_latest_assessment(payload: dict) -> None:
 
 def generate_solution_data(result: AssessmentResult) -> dict:
     from solution_generator import SOLUTION_DB
+    from risk_solution_program import build_solution_program
 
     high_dims = [dim for dim in result.dimensions.values()
                  if dim.level in (RiskLevel.HIGH, RiskLevel.CRITICAL) or dim.score >= 2.5]
@@ -533,6 +546,15 @@ def generate_solution_data(result: AssessmentResult) -> dict:
             pass
     if out.get("analytics") and out["analytics"].get("data_quality_gate"):
         out["data_quality_gate"] = out["analytics"]["data_quality_gate"]
+    try:
+        out["solution_program"] = build_solution_program(
+            result,
+            action_plans=out.get("action_plans"),
+            deep_solutions=out.get("deep_solutions"),
+            external_evidence=(out.get("analytics") or {}).get("external_evidence"),
+        )
+    except Exception:
+        out["solution_program"] = None
     from risk_honesty import apply_honesty_gate
     apply_honesty_gate(out)
     try:
@@ -695,10 +717,24 @@ def api_auth_me():
 @app.route("/api/auth/login", methods=["POST"])
 def api_auth_login():
     from erm_auth import authenticate, login_user
+    from erm_rate_limit import check_allowed, client_key, record_failure, record_success
+
     body = request.get_json(silent=True) or {}
-    user = authenticate(str(body.get("username") or ""), str(body.get("password") or ""))
+    username = str(body.get("username") or "")
+    key = client_key(request.remote_addr or "", username)
+    allowed, retry = check_allowed(key)
+    if not allowed:
+        return jsonify({
+            "ok": False,
+            "error": f"登录尝试过多，请 {retry} 秒后重试",
+            "code": "ERR-ERM-RATE",
+            "retry_after": retry,
+        }), 429
+    user = authenticate(username, str(body.get("password") or ""))
     if not user:
+        record_failure(key)
         return jsonify({"ok": False, "error": "用户名或密码不正确", "code": "ERR-ERM-AUTH"}), 401
+    record_success(key)
     login_user(user)
     return jsonify({"ok": True, "user": user.to_dict(), "next": _safe_next(body.get("next") or "/")})
 
