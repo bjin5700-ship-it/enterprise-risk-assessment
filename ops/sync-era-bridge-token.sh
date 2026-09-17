@@ -1,6 +1,7 @@
 #!/usr/bin/env bash
 # Mirror ERM_ADMIN_TOKEN -> ERA_BRIDGE_TOKEN in web_app/.env (idempotent).
-set -euo pipefail
+set -eu
+set -o pipefail 2>/dev/null || true
 ROOT="${1:-/opt/enterprise-risk-assessment}"
 ENV_FILE="$ROOT/web_app/.env"
 if [ ! -f "$ENV_FILE" ]; then

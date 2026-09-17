@@ -12,6 +12,16 @@
 </div>
 <div id="reassessBar" class="notice notice-info" style="display:none;"></div>
 <div id="compareCard" class="compare-card no-print" style="display:none;"></div>
+<div id="riskChangeSection" class="card no-print" style="display:none;">
+  <h3><i class="fas fa-table"></i> 风险变化矩阵（多期对比）</h3>
+  <p class="gap-summary muted-intro">同一企业在不同评估时点的维度得分与综合分变化；列头标注当期重要事项。</p>
+  <div id="riskChangeMatrix"></div>
+  <div id="riskDiffDetail" class="risk-diff-detail"></div>
+</div>
+<div id="executiveEnPanel" class="card no-print" style="display:none;">
+  <h3><i class="fas fa-globe"></i> Executive Summary (EN)</h3>
+  <div id="executiveEnBody"></div>
+</div>
 
 <div class="dashboard-hero" id="dashboardHero">
   <div class="score-ring-wrap">
@@ -133,6 +143,8 @@
     <button class="btn btn-outline btn-sm" data-export="docx"><i class="fas fa-file-word"></i> Word</button>
     <button class="btn btn-outline btn-sm" data-export="pdf"><i class="fas fa-file-pdf"></i> PDF</button>
     <button class="btn btn-outline btn-sm" data-export="html"><i class="fas fa-file-code"></i> HTML</button>
+    <button class="btn btn-outline btn-sm" data-export="md"><i class="fas fa-file-alt"></i> MD</button>
+    <button class="btn btn-outline btn-sm" data-export="json"><i class="fas fa-database"></i> JSON</button>
     <a href="{{ erm_base }}/report" class="btn btn-primary btn-sm"><i class="fas fa-file-alt"></i> 完整报告</a>
     <a href="{{ erm_base }}/solution" class="btn btn-outline btn-sm"><i class="fas fa-lightbulb"></i> 解决方案</a>
   </div>
@@ -171,6 +183,17 @@ async function loadDashboard() {
   const cached = JSON.parse(localStorage.getItem(ERM.HISTORY_CACHE_KEY) || "[]");
   const sameCo = cached.filter(r => r.company_name === result.company_name);
   if (sameCo.length > 1) ERM.renderComparison(document.getElementById("compareCard"), result, sameCo[1]);
+  try {
+    const tlResp = await fetch(`/api/history/timeline?company_name=${encodeURIComponent(result.company_name)}`);
+    if (tlResp.ok) {
+      const tl = await tlResp.json();
+      ERM.renderRiskChangeMatrix(document.getElementById("riskChangeMatrix"), document.getElementById("riskChangeSection"), tl);
+    }
+  } catch (_) { /* ignore */ }
+  ERM.renderExecutiveSummaryEn(document.getElementById("executiveEnBody"), document.getElementById("executiveEnPanel"), result.executive_summary_en);
+  if (result.assessment_diff?.has_prior) {
+    ERM.renderAssessmentDiff(document.getElementById("riskDiffDetail"), result.assessment_diff);
+  }
   window.ERM_COMPANY = result.company_name;
   await ERM.applyWorkflow(result);
   render(result);

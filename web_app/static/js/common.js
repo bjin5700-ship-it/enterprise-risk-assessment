@@ -256,6 +256,54 @@ const ERM = {
       · 等级 ${previous.overall_level} → ${current.overall_level}`;
   },
 
+  renderRiskChangeMatrix(container, section, timeline) {
+    if (!container || !timeline?.matrix?.columns?.length) return;
+    if (section) section.style.display = "block";
+    const m = timeline.matrix;
+    const cols = m.columns;
+    let html = '<div class="risk-matrix-wrap"><table class="dim-table risk-matrix"><thead><tr><th>维度</th>';
+    cols.forEach((c) => {
+      const ev = (c.events || []).slice(0, 2).map(e => this.escapeHtml(e)).join("<br>");
+      html += `<th>${this.escapeHtml(c.assessed_at || "")}<br><span class="action-meta">${c.overall_score != null ? c.overall_score.toFixed(2) : "—"}</span>${ev ? `<br><span class="matrix-event">${ev}</span>` : ""}</th>`;
+    });
+    html += "</tr></thead><tbody>";
+    const allRows = [m.overall_row, ...(m.rows || [])].filter(Boolean);
+    allRows.forEach((row) => {
+      html += `<tr><td><strong>${this.escapeHtml(row.dimension)}</strong></td>`;
+      (row.cells || []).forEach((cell) => {
+        const d = cell.delta_from_prev;
+        const deltaCls = d > 0.05 ? "delta-up" : d < -0.05 ? "delta-down" : "";
+        const deltaTxt = d != null ? `<span class="${deltaCls}">${d > 0 ? "+" : ""}${d}</span>` : "";
+        const sc = cell.score != null ? Number(cell.score).toFixed(2) : "—";
+        html += `<td>${sc} ${deltaTxt}<br><span class="action-meta">${this.escapeHtml(cell.level || "")}</span></td>`;
+      });
+      html += "</tr>";
+    });
+    html += "</tbody></table></div>";
+    if (timeline.message) html += `<p class="gap-summary">${this.escapeHtml(timeline.message)}</p>`;
+    container.innerHTML = html;
+  },
+
+  renderAssessmentDiff(container, diff) {
+    if (!container || !diff?.has_prior) return;
+    const rows = (diff.dimension_changes || []).slice(0, 12).map((c) => {
+      const d = c.delta;
+      const cls = d > 0.05 ? "delta-up" : d < -0.05 ? "delta-down" : "";
+      return `<tr><td>${this.escapeHtml(c.dimension)}</td><td>${c.prior_score ?? "—"}</td><td>${c.current_score ?? "—"}</td><td class="${cls}">${d != null ? (d > 0 ? "+" : "") + d : "—"}</td></tr>`;
+    }).join("");
+    container.innerHTML = `<h4>相对上一期（${this.escapeHtml((diff.prior_assessed_at || "").slice(0, 10))}）维度变动</h4>
+      <table class="dim-table"><thead><tr><th>维度</th><th>上期</th><th>本期</th><th>Δ</th></tr></thead><tbody>${rows}</tbody></table>`;
+  },
+
+  renderExecutiveSummaryEn(container, section, summary) {
+    if (!summary || !container) return;
+    if (section) section.style.display = "block";
+    const paras = (summary.paragraphs || []).map(p => `<p>${this.escapeHtml(p)}</p>`).join("");
+    const board = (summary.board_asks_en || []).length
+      ? `<p><strong>Board asks:</strong></p><ul>${summary.board_asks_en.map(b => `<li>${this.escapeHtml(b)}</li>`).join("")}</ul>` : "";
+    container.innerHTML = `<p class="gap-summary"><strong>${this.escapeHtml(summary.headline || "")}</strong></p>${paras}${board}<p class="action-meta">${this.escapeHtml(summary.maturity_note || "")}</p>`;
+  },
+
   escapeHtml(text) {
     const div = document.createElement("div");
     div.textContent = text == null ? "" : String(text);

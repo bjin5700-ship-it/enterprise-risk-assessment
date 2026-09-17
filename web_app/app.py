@@ -392,6 +392,20 @@ def assessment_to_dict(result: AssessmentResult, stats: dict = None, warnings: L
         )
     except Exception:
         payload["solution_program"] = None
+    try:
+        from risk_executive_intl import build_executive_summary_en
+
+        payload["executive_summary_en"] = build_executive_summary_en(result, payload)
+    except Exception:
+        payload["executive_summary_en"] = None
+    try:
+        from risk_timeline import build_company_timeline, diff_two_assessments
+
+        payload["risk_timeline"] = build_company_timeline(load_history(), result.company_name)
+        if prior and isinstance(prior, dict) and prior.get("dimensions"):
+            payload["assessment_diff"] = diff_two_assessments(payload, prior)
+    except Exception:
+        payload["risk_timeline"] = None
     if payload["analytics"] and payload["analytics"].get("deep_analysis"):
         payload["deep_analysis"] = payload["analytics"]["deep_analysis"]
         payload["deep_solutions"] = payload["analytics"]["deep_analysis"].get("deep_solutions", [])
@@ -1139,9 +1153,42 @@ def api_history_delete(record_id):
     return jsonify({"ok": True, "deleted": ok})
 
 
+@app.route("/api/history/timeline", methods=["GET"])
+def api_history_timeline():
+    from erm_auth import current_user, filter_history
+    from risk_timeline import build_company_timeline
+
+    company = (request.args.get("company_name") or "").strip()
+    if not company:
+        return jsonify({"error": "company_name required"}), 400
+    limit = min(24, max(2, int(request.args.get("limit") or 12)))
+    records = filter_history(load_history(), current_user())
+    return jsonify(build_company_timeline(records, company, limit=limit))
+
+
+@app.route("/api/assess/diff", methods=["POST"])
+def api_assess_diff():
+    from risk_timeline import diff_two_assessments
+
+    body = request.get_json(force=True) or {}
+    current = body.get("current")
+    prior = body.get("prior")
+    cur_id = body.get("current_id")
+    pri_id = body.get("prior_id")
+    if cur_id:
+        rec = next((r for r in load_history() if str(r.get("id")) == str(cur_id)), None)
+        current = (rec.get("assessment") or rec) if rec else None
+    if pri_id:
+        rec = next((r for r in load_history() if str(r.get("id")) == str(pri_id)), None)
+        prior = (rec.get("assessment") or rec) if rec else None
+    if not current or not prior:
+        return jsonify({"error": "current 与 prior（或 history id）必填"}), 400
+    return jsonify(diff_two_assessments(current, prior))
+
+
 @app.route("/api/export/<fmt>", methods=["POST"])
 def api_export(fmt):
-    allowed = {"docx", "html", "md", "pdf", "solution-docx"}
+    allowed = {"docx", "html", "md", "pdf", "solution-docx", "json", "solution-json"}
     if fmt not in allowed:
         return jsonify({"error": f"不支持的格式: {fmt}"}), 400
     try:
@@ -1169,6 +1216,24 @@ def api_export(fmt):
             out_path = os.path.join(EXPORT_DIR, _safe_filename(result.company_name, "html"))
             path = HTMLReportGenerator(result, out_path).generate()
             mime = "text/html; charset=utf-8"
+        elif fmt == "json":
+            tpl = get_template_fields() or {}
+            stats = compute_form_stats(data, tpl) if tpl else None
+            payload = assessment_to_dict(result, stats=stats)
+            filename = _safe_filename(result.company_name, "json", prefix="企业风险评估")
+            out_path = os.path.join(EXPORT_DIR, filename)
+            with open(out_path, "w", encoding="utf-8") as f:
+                json.dump(payload, f, ensure_ascii=False, indent=2)
+            mime = "application/json; charset=utf-8"
+            path = out_path
+        elif fmt == "solution-json":
+            payload = generate_solution_data(result)
+            filename = _safe_filename(result.company_name, "json", prefix="企业风险解决方案")
+            out_path = os.path.join(EXPORT_DIR, filename)
+            with open(out_path, "w", encoding="utf-8") as f:
+                json.dump(payload, f, ensure_ascii=False, indent=2)
+            mime = "application/json; charset=utf-8"
+            path = out_path
         else:
             from report_markdown import MarkdownReportGenerator
             out_path = os.path.join(EXPORT_DIR, _safe_filename(result.company_name, "md"))
