@@ -977,30 +977,92 @@ def api_import_local():
         return jsonify({"error": f"导入失败: {exc}"}), 500
 
 
+def _assess_form_payload(data: dict, *, strict: bool, save_history: bool, note: str) -> dict:
+    template = get_template_fields()
+    if not template:
+        raise ValueError("Excel 模板未加载")
+
+    errors, warnings = validate_form_data(data, template)
+    if errors and strict:
+        raise ValueError(errors[0])
+
+    stats = compute_form_stats(data, template)
+    result = run_assessment_from_form(data)
+    payload = assessment_to_dict(result, stats=stats, warnings=warnings)
+    if errors and not strict:
+        payload["validation_errors"] = errors
+
+    if save_history:
+        record = add_history_record(payload, note=note)
+        payload["history_id"] = record["id"]
+    return payload
+
+
 @app.route("/api/assess", methods=["POST"])
 def api_assess():
     try:
         data = request.get_json(force=True) or {}
-        template = get_template_fields()
-        if not template:
-            return jsonify({"error": "Excel 模板未加载"}), 404
-
-        errors, warnings = validate_form_data(data, template)
-        if errors and request.args.get("strict") == "1":
-            return jsonify({"error": errors[0], "errors": errors, "warnings": warnings}), 400
-
-        stats = compute_form_stats(data, template)
-        result = run_assessment_from_form(data)
-        payload = assessment_to_dict(result, stats=stats, warnings=warnings)
-
-        if request.args.get("save_history") == "1":
-            note = request.args.get("note", "")
-            record = add_history_record(payload, note=note)
-            payload["history_id"] = record["id"]
-
+        payload = _assess_form_payload(
+            data,
+            strict=request.args.get("strict") == "1",
+            save_history=request.args.get("save_history") == "1",
+            note=request.args.get("note", ""),
+        )
         return jsonify(payload)
+    except ValueError as exc:
+        return jsonify({"error": str(exc)}), 400
     except Exception as exc:
         return jsonify({"error": f"评估失败: {exc}"}), 500
+
+
+@app.route("/api/assess/async", methods=["POST"])
+def api_assess_async():
+    """Queue full assessment; poll GET /api/assess/jobs/<id> or use webhook_url."""
+    try:
+        from erm_assess_jobs import create_job, run_job_async
+
+        data = request.get_json(force=True) or {}
+        webhook_url = str(data.pop("webhook_url", "") or request.args.get("webhook_url") or "").strip()
+        webhook_url = webhook_url or (os.environ.get("ERA_BRIDGE_NOTIFY_URL") or "").strip()
+        strict = request.args.get("strict") == "1"
+        save_history = request.args.get("save_history") == "1"
+        note = request.args.get("note", "")
+
+        job_id = create_job()
+
+        def _run() -> dict:
+            return _assess_form_payload(data, strict=strict, save_history=save_history, note=note)
+
+        run_job_async(job_id, _run, webhook_url=webhook_url)
+        return jsonify(
+            {
+                "job_id": job_id,
+                "status": "queued",
+                "poll_url": f"/api/assess/jobs/{job_id}",
+            }
+        ), 202
+    except Exception as exc:
+        return jsonify({"error": f"异步评估入队失败: {exc}"}), 500
+
+
+@app.route("/api/assess/jobs/<job_id>", methods=["GET"])
+def api_assess_job(job_id: str):
+    from erm_assess_jobs import get_job
+
+    row = get_job(job_id)
+    if not row:
+        return jsonify({"error": "任务不存在"}), 404
+    out = {
+        "job_id": row["id"],
+        "status": row["status"],
+        "created_at": row["created_at"],
+        "updated_at": row["updated_at"],
+    }
+    if row.get("error"):
+        out["error"] = row["error"]
+    if row.get("result") is not None:
+        out["result"] = row["result"]
+    return jsonify(out)
 
 
 @app.route("/api/solution", methods=["POST"])
