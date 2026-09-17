@@ -31,7 +31,12 @@ def load_timeseries_db(path: str = None) -> dict:
         with open(path, "r", encoding="utf-8") as f:
             data = json.load(f)
         return data if isinstance(data, dict) else {}
-    except (json.JSONDecodeError, OSError):
+    except (json.JSONDecodeError, UnicodeDecodeError, OSError) as exc:
+        try:
+            bak = f"{path}.corrupt.{datetime.now().strftime('%Y%m%d%H%M%S')}"
+            os.replace(path, bak)
+        except OSError:
+            pass
         return {}
 
 

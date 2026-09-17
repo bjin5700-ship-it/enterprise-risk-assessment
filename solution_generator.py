@@ -789,3 +789,4 @@ def generate_solution_report(result: AssessmentResult, output_path: str = None) 
 
     doc.save(output_path)
     print(f"✓ 解决方案报告已生成: {output_path}")
+    return output_path

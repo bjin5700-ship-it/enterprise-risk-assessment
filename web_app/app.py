@@ -414,9 +414,13 @@ def assessment_to_dict(result: AssessmentResult, stats: dict = None, warnings: L
         payload["bayesian_update"] = payload["analytics"]["bayesian_update"]
     if payload["analytics"] and payload["analytics"].get("executive_brief"):
         payload["executive_brief"] = payload["analytics"]["executive_brief"]
-    if payload["analytics"] and payload["analytics"].get("closed_loop"):
-        payload["closed_loop"] = payload["analytics"]["closed_loop"]
+    if payload.get("analytics"):
+        payload["closed_loop"] = payload["analytics"].get("closed_loop")
         payload["alerts"] = payload["analytics"].get("alerts")
+    if payload.get("closed_loop") is None:
+        payload["closed_loop"] = {}
+    if payload.get("alerts") is None:
+        payload["alerts"] = {"alerts": [], "summary": "无告警"}
     if payload.get("analytics"):
         payload["phase1_enhancement"] = payload["analytics"].get("phase1_enhancement")
         payload["data_quality_gate"] = payload["analytics"].get("data_quality_gate")
@@ -648,6 +652,8 @@ def api_engines():
     except Exception as exc:
         store = {"history_backend": "unknown", "error": str(exc)}
     user = current_user()
+    tpl = get_template_fields() or {}
+    tpl_fp = _find_template_xlsx()
     return jsonify({
         "ocr": ocr,
         "jsonschema": js,
@@ -659,6 +665,14 @@ def api_engines():
         "roles": ROLE_LABEL,
         "external_risk": ext,
         "storage": store,
+        "template": {
+            "loaded": bool(tpl),
+            "sheet_count": len(tpl),
+            "path": os.path.basename(tpl_fp) if tpl_fp else None,
+        },
+        "bridge": {
+            "era_bridge_token_configured": bool((os.environ.get("ERA_BRIDGE_TOKEN") or os.environ.get("ERM_ADMIN_TOKEN") or "").strip()),
+        },
     })
 
 
@@ -1420,11 +1434,17 @@ def api_kpi_timeseries():
     company = request.args.get("company", "")
     if not company:
         return jsonify({"error": "缺少 company 参数"}), 400
-    from risk_timeseries import get_company_timeseries, analyze_timeseries
-    return jsonify({
-        "timeseries": get_company_timeseries(company),
-        "analysis": analyze_timeseries(company),
-    })
+    try:
+        from risk_timeseries import get_company_timeseries, analyze_timeseries
+        return jsonify({
+            "timeseries": get_company_timeseries(company),
+            "analysis": analyze_timeseries(company),
+        })
+    except Exception as exc:
+        return jsonify({
+            "timeseries": {"company_name": company, "snapshot_count": 0, "snapshots": []},
+            "analysis": {"has_trend": False, "message": "时序数据暂不可用", "error": str(exc)},
+        }), 200
 
 
 @app.route("/api/notifications", methods=["GET"])

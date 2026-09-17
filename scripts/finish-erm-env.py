@@ -64,8 +64,16 @@ def main():
             except subprocess.CalledProcessError:
                 continue
 
-    text = upsert(text, "ERM_EXTERNAL_RISK_PROVIDER", "demo")
-    text = upsert(text, "ERM_EXTERNAL_RISK_URL", "http://127.0.0.1:8091/api/external-risk/demo-feed")
+    tyc = ""
+    for line in text.splitlines():
+        if line.strip().startswith("TIANYANCHA_TOKEN="):
+            tyc = line.split("=", 1)[1].strip().strip('"').strip("'")
+            break
+    if not tyc:
+        text = upsert(text, "ERM_EXTERNAL_RISK_PROVIDER", "demo")
+        text = upsert(text, "ERM_EXTERNAL_RISK_URL", "http://127.0.0.1:8091/api/external-risk/demo-feed")
+    else:
+        text = upsert(text, "ERM_EXTERNAL_RISK_PROVIDER", "tianyancha")
     text = upsert(text, "ERM_AUTH_MODE", "on")
     ENV.write_text(text, encoding="utf-8")
     os.chmod(ENV, 0o600)

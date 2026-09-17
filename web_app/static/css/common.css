@@ -758,7 +758,7 @@ i.fas, i.far, i.fab, i.fa,
 .menu-icon,
 .material-icons,
 .sidebar .logo .brand-mark {
-  display: none !important;
+  display: inline-flex !important;
 }
 /* keep layout tight after icon removal */
 .sidebar nav a, .btn, .card h3, .section-header h3, .header h2, .notice {

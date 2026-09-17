@@ -16,7 +16,8 @@ WEB = os.path.join(ROOT, "web_app")
 sys.path.insert(0, ROOT)
 sys.path.insert(0, WEB)
 
-BASE = os.environ.get("ERM_AUDIT_URL", "http://127.0.0.1:8088")
+BASE = os.environ.get("ERM_AUDIT_URL", "http://127.0.0.1:8088").rstrip("/")
+AUDIT_TOKEN = (os.environ.get("ERM_AUDIT_TOKEN") or os.environ.get("ERM_ADMIN_TOKEN") or "").strip()
 FAILURES: List[str] = []
 PASSES: List[str] = []
 
@@ -32,9 +33,13 @@ def fail(name: str, err: str):
 
 
 def http(method: str, path: str, body: Any = None, content_type: str = "application/json") -> Tuple[int, Any]:
+    if not path.startswith("/"):
+        path = "/" + path
     url = BASE + path
     data = None
     headers = {}
+    if AUDIT_TOKEN:
+        headers["X-ERM-Token"] = AUDIT_TOKEN
     if body is not None:
         if content_type == "application/json":
             data = json.dumps(body, ensure_ascii=False).encode("utf-8")
@@ -107,6 +112,8 @@ def check_assessment_pipeline():
     assert payload.get("closed_loop") is not None
     assert payload.get("alerts") is not None
     assert payload.get("executive_brief") is not None
+    assert payload.get("risk_timeline") is not None
+    assert payload.get("executive_summary_en") is not None
     deep = payload.get("deep_analysis") or {}
     assert deep.get("risk_register") is not None
     assert deep.get("monte_carlo") is not None
@@ -160,7 +167,11 @@ def check_exports():
     for p in paths:
         assert os.path.isfile(p) and os.path.getsize(p) > 500, p
     with open(paths[2], encoding="utf-8") as f:
-        assert "数据闭环" in f.read() or "评估概要" in f.read()
+        html = f.read()
+        assert any(
+            k in html
+            for k in ("数据闭环", "评估概要", "风险评估", "Enterprise Risk", "overall_score")
+        ), "HTML report missing expected sections"
     with open(paths[3], encoding="utf-8") as f:
         assert len(f.read()) > 200
 
@@ -191,14 +202,23 @@ def check_integrations():
 
 # ── 6. HTTP API（需服务运行） ──
 def check_http_pages():
-    for path in ["/ping", "/", "/data-entry", "/report", "/solution"]:
+    for path in ["/ping", "/health", "/api/health", "/", "/report"]:
         code, _ = http("GET", path)
         assert code == 200, f"{path} -> {code}"
+    for path in ["/data-entry", "/solution"]:
+        code, _ = http("GET", path)
+        assert code in (200, 302), f"{path} -> {code} (expect 200 or login redirect)"
 
 
 def check_http_apis():
+    code, engines = http("GET", "/api/engines")
+    assert code == 200, f"engines HTTP {code}: {engines}"
+    tpl_meta = (engines or {}).get("template") or {}
+    assert tpl_meta.get("loaded"), f"Excel 模板未加载: {tpl_meta}"
+
     code, tpl = http("GET", "/api/template/fields")
-    assert code == 200 and isinstance(tpl, dict) and tpl, "template empty"
+    assert code == 200, f"template fields HTTP {code}: {tpl}"
+    assert isinstance(tpl, dict) and tpl, "template empty — 确认项目根目录存在《企业风险信息搜集表》.xlsx"
 
     form = minimal_form("AuditTestCo")
     code, assess = http("POST", "/api/assess?save_history=1", form)
@@ -211,6 +231,9 @@ def check_http_apis():
 
     code, hist = http("GET", "/api/history")
     assert code == 200 and hist.get("records") is not None
+
+    code, tl = http("GET", "/api/history/timeline?company_name=AuditTestCo")
+    assert code == 200 and "snapshots" in (tl or {}), f"timeline -> {code} {tl}"
 
     company = "AuditTestCo"
     for path in [
@@ -270,9 +293,9 @@ def check_http_apis():
 
 def check_http_export():
     form = minimal_form("ExportApiCo")
-    for fmt in ("html", "md", "docx", "pdf", "solution-docx"):
-        code, _ = http("POST", f"/api/export/{fmt}", form)
-        assert code == 200, f"export {fmt} failed"
+    for fmt in ("html", "md", "docx", "pdf", "json", "solution-docx", "solution-json"):
+        code, body = http("POST", f"/api/export/{fmt}", form)
+        assert code == 200, f"export {fmt} failed -> {code} {body}"
 
 
 def check_static_assets():

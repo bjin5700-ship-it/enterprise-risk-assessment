@@ -83,6 +83,9 @@ def main() -> int:
         erm_updates["TIANYANCHA_TOKEN"] = tyc
         erm_updates["TIANYANCHA_BASE_URL"] = tyc_base
         erm_updates["ERM_EXTERNAL_RISK_PROVIDER"] = "tianyancha"
+        erm_updates["ERM_EXTERNAL_RISK_URL"] = ""
+    else:
+        erm_updates.setdefault("ERM_EXTERNAL_RISK_PROVIDER", "demo_fixture")
     ERM_ENV.parent.mkdir(parents=True, exist_ok=True)
     write_env(ERM_ENV, erm_updates)
     for k, v in {**parse_env(ERM_ENV), **erm_updates}.items():
