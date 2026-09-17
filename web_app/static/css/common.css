@@ -778,18 +778,275 @@ i.fas, i.far, i.fab, i.fa,
 .task-list li { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; padding: 8px 0; border-bottom: 1px solid #eef2f6; font-size: 13px; }
 .task-due { color: #64748b; font-size: 12px; }
 
-.sidebar nav a,
-.header h2,
-.card h3,
-.section-header h3,
-.report-section h2 {
+.sidebar nav a {
   font-family: Inter, "Noto Sans SC", -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif !important;
   font-size: 14px !important;
   font-weight: 500 !important;
   letter-spacing: 0 !important;
-  line-height: 1.4 !important;
+  line-height: 1.45 !important;
 }
 .sidebar nav a.active {
   font-weight: 600 !important;
+}
+
+/* === ERM Clean Matrix UI (全站统一 · 2026-09) === */
+:root {
+  --erm-bg: #f9fafb;
+  --erm-card: #ffffff;
+  --erm-border: #e5e7eb;
+  --erm-text-bright: #111827;
+  --erm-text: #374151;
+  --erm-text-muted: #6b7280;
+  --erm-text-dim: #9ca3af;
+  --erm-table-head: #111827;
+  --erm-radius: 8px;
+  --erm-radius-lg: 10px;
+  --erm-shadow: 0 1px 2px rgba(15, 23, 42, 0.04);
+  --erm-shadow-md: 0 1px 3px rgba(15, 23, 42, 0.06);
+}
+
+html, body {
+  font-size: 14px !important;
+  line-height: 1.6 !important;
+  background: var(--erm-bg) !important;
+}
+
+.header h2 {
+  font-size: 17px !important;
+  font-weight: 600 !important;
+  color: var(--erm-text-bright) !important;
+  letter-spacing: -0.01em !important;
+}
+
+.card > h3,
+.report-section > h2,
+.section-header h3,
+#riskChangeSection > h3,
+#executiveEnPanel > h3 {
+  font-size: 15px !important;
+  font-weight: 600 !important;
+  color: var(--erm-text-bright) !important;
+  margin-bottom: 6px !important;
+  gap: 8px !important;
+}
+
+.muted-intro,
+.card > p.gap-summary,
+.card > .gap-summary.muted-intro {
+  font-size: 13px !important;
+  color: var(--erm-text-muted) !important;
+  line-height: 1.55 !important;
+  margin-bottom: 14px !important;
+}
+
+.card,
+.report-section,
+.stat-card {
+  padding: 20px 22px !important;
+  box-shadow: var(--erm-shadow) !important;
+}
+.card:hover,
+.stat-card:hover {
+  transform: none !important;
+  box-shadow: var(--erm-shadow-md) !important;
+}
+
+/* 全站表格：与风险变化矩阵一致 */
+.dim-table,
+.kpi-table,
+.gap-table,
+.jobs-table,
+table.risk-matrix {
+  border-collapse: collapse;
+  width: 100%;
+}
+.dim-table th,
+.kpi-table th,
+.gap-table th,
+.jobs-table th,
+table.risk-matrix th {
+  background: var(--erm-table-head) !important;
+  color: #fff !important;
+  font-size: 13px !important;
+  font-weight: 600 !important;
+  padding: 14px 16px !important;
+  border: none !important;
+  vertical-align: top;
+}
+.dim-table th:first-child,
+table.risk-matrix th:first-child {
+  text-align: left;
+  border-radius: 6px 0 0 0;
+}
+.dim-table th:last-child,
+table.risk-matrix th:last-child {
+  border-radius: 0 6px 0 0;
+}
+.dim-table td,
+.kpi-table td,
+.gap-table td,
+.jobs-table td,
+table.risk-matrix td {
+  padding: 14px 16px !important;
+  font-size: 14px !important;
+  color: var(--erm-text) !important;
+  border: none !important;
+  border-bottom: 1px solid var(--erm-border) !important;
+  vertical-align: top;
+}
+.dim-table tbody tr:last-child td,
+table.risk-matrix tbody tr:last-child td,
+.kpi-table tbody tr:last-child td {
+  border-bottom: none !important;
+}
+.dim-table tbody tr:hover td,
+table.risk-matrix tbody tr:hover td {
+  background: #f9fafb;
+}
+table.risk-matrix td:not(:first-child),
+.dim-table td:not(:first-child) {
+  text-align: center;
+}
+.dim-table td:first-child,
+table.risk-matrix td:first-child {
+  font-weight: 500;
+  color: var(--erm-text-bright);
+}
+table.risk-matrix .action-meta,
+.dim-table .action-meta {
+  display: block;
+  font-size: 12px !important;
+  color: var(--erm-text-muted) !important;
+  font-weight: 400;
+  margin-top: 4px;
+}
+.risk-matrix-wrap {
+  margin-top: 4px;
+  border: 1px solid var(--erm-border);
+  border-radius: var(--erm-radius);
+  overflow: hidden;
+}
+
+.dashboard-hero,
+.entry-hero {
+  background: var(--erm-card) !important;
+  color: var(--erm-text-bright) !important;
+  border: 1px solid var(--erm-border) !important;
+  box-shadow: var(--erm-shadow) !important;
+}
+.hero-meta h2,
+.dashboard-hero .hero-meta h2 {
+  font-size: 18px !important;
+  font-weight: 600 !important;
+  color: var(--erm-text-bright) !important;
+}
+.hero-meta .hero-sub {
+  color: var(--erm-text-muted) !important;
+  opacity: 1 !important;
+  font-size: 13px !important;
+}
+.hero-pill {
+  background: #f9fafb !important;
+  border: 1px solid var(--erm-border) !important;
+  color: var(--erm-text) !important;
+  backdrop-filter: none !important;
+}
+.hero-pill .pill-val {
+  color: var(--erm-text-bright) !important;
+  font-size: 16px !important;
+  font-weight: 600 !important;
+}
+.score-ring-center .score-num {
+  color: var(--erm-text-bright) !important;
+}
+
+.report-cover {
+  background: var(--erm-table-head) !important;
+  border-radius: var(--erm-radius-lg) !important;
+  box-shadow: var(--erm-shadow-md) !important;
+}
+.report-cover.solution-cover {
+  background: #1f2937 !important;
+}
+.report-section h2 {
+  font-size: 15px !important;
+  font-weight: 600 !important;
+  border-left: none !important;
+  padding-left: 0 !important;
+  border-bottom: 1px solid var(--erm-border);
+  padding-bottom: 10px !important;
+  margin-bottom: 16px !important;
+}
+
+.compare-card {
+  background: #fff !important;
+  border: 1px solid var(--erm-border) !important;
+  border-left: 3px solid var(--erm-accent) !important;
+  border-radius: var(--erm-radius) !important;
+  padding: 16px 18px !important;
+  font-size: 13px !important;
+  color: var(--erm-text) !important;
+}
+
+.notice {
+  border-radius: var(--erm-radius) !important;
+  font-size: 13px !important;
+  border-left-width: 3px !important;
+}
+.btn {
+  font-size: 13px !important;
+  font-weight: 500 !important;
+  border-radius: 8px !important;
+}
+.btn-sm {
+  font-size: 12px !important;
+  padding: 6px 12px !important;
+}
+
+.form-group label {
+  font-size: 13px !important;
+  color: var(--erm-text) !important;
+}
+.form-group input,
+.form-group select,
+.form-group textarea {
+  font-size: 14px !important;
+  border-color: var(--erm-border) !important;
+  border-radius: 8px !important;
+  padding: 9px 12px !important;
+}
+
+.section-nav {
+  border-radius: var(--erm-radius) !important;
+  padding: 8px 10px !important;
+  gap: 6px !important;
+}
+.section-nav a {
+  font-size: 13px !important;
+  padding: 7px 14px !important;
+  border-radius: 999px !important;
+}
+
+.gap-summary,
+.exec-summary-list,
+.risk-list li,
+.action-body,
+.solution-item .detail {
+  font-size: 14px !important;
+  color: var(--erm-text) !important;
+  line-height: 1.6 !important;
+}
+
+/* 标题区保留图标（矩阵/章节可读性） */
+.card h3 i.fas,
+.card h3 i.far,
+.section-header h3 i.fas,
+.header h2 i.fas,
+#riskChangeSection h3 i.fas {
+  display: inline-block !important;
+  color: var(--erm-text-muted);
+  font-size: 14px;
+  width: auto !important;
+  margin-right: 6px;
 }
 
